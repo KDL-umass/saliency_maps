@@ -14,13 +14,16 @@ def make_movie(env_name, env, model, checkpoint='*.tar', num_frames=20, first_fr
     load_dir = '{}{}/'.format('overfit-' if overfit_mode else '', env_name.lower())
     meta = get_env_meta(env_name)
 
-    # get a rollout of the policy
-    movie_title = "{}-{}-{}.mp4".format(prefix, num_frames, env_name.lower())
-    action_trace_title = "{}-{}-{}.txt".format(prefix, num_frames, env_name.lower())
+    # generate file names
+    movie_title = "{}-{}-{}-{}.mp4".format(prefix, num_frames, env_name.lower(), 1)
+    action_trace_title = "{}-{}-{}-{}.txt".format(prefix, num_frames, env_name.lower(), 1)
+    movie_title, action_trace_title = update_filenames(save_dir, movie_title, action_trace_title)
     print('\tmaking movie "{}" using checkpoint at {}{}'.format(movie_title, load_dir, checkpoint))
+
+    # get a rollout of the policy
     max_ep_len = first_frame + num_frames + 1
     history = rollout(model, env, max_ep_len=max_ep_len)
-
+    
     # save action trace
     with open(save_dir + action_trace_title, 'w') as f:
         for item in history['actions']:
@@ -51,6 +54,22 @@ def make_movie(env_name, env, model, checkpoint='*.tar', num_frames=20, first_fr
                 tstr = time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start))
                 print('\ttime: {} | progress: {:.1f}%'.format(tstr, 100*i/min(num_frames, total_frames)), end='\r')
     print('\nfinished.')
+
+def update_filenames(directory, movie_file, action_trace_file):
+    if os.path.isfile(directory + movie_file):
+        count = 1
+        while True:
+            count += 1
+            new_movie_file = movie_file.split(".mp4")[0][:-1] + str(count) + ".mp4"
+            new_action_trace_file = action_trace_file.split(".txt")[0][:-1] + str(count) + ".txt"
+            if os.path.isfile(directory + new_movie_file):
+                continue
+            else:
+                movie_file = new_movie_file
+                action_trace_file = new_action_trace_file
+                break
+
+    return movie_file, action_trace_file
 
 # user might also want to access make_movie function from some other script
 if __name__ == '__main__':
