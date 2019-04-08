@@ -42,9 +42,9 @@ def saliency_on_atari_frame(saliency, atari, fudge_factor, channel=2, sigma=0):
     # sometimes saliency maps are a bit clearer if you blur them
     # slightly...sigma adjusts the radius of that blur
     pmax = np.max(saliency)
-    S = np.zeros((84, 110))
-    S[:, 18:102] = saliency
-    S = imresize(saliency, size=[160,240], interp='bilinear').astype(np.float32)
+    S = np.zeros((110, 84))
+    S[18:102, :] = saliency
+    S = imresize(saliency, size=[atari.shape[0],atari.shape[1]], interp='bilinear').astype(np.float32)
     S = S if sigma == 0 else gaussian_filter(S, sigma=sigma)
     S -= np.min(S)
     S = fudge_factor * pmax * S / np.max(S)
@@ -62,6 +62,8 @@ def get_env_meta(env_name):
         meta['critic_ff'] = 600 ; meta['actor_ff'] = 300
     elif env_name=="SpaceInvaders-v0":
         meta['critic_ff'] = 400 ; meta['actor_ff'] = 400
+    elif env_name=="AmidarToyboxNoFrameskip-v4":
+        meta['critic_ff'] = 600 ; meta['actor_ff'] = 300
     else:
         print('environment "{}" not supported'.format(env_name))
     return meta
