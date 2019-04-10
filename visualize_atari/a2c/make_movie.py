@@ -25,6 +25,7 @@ def make_movie(env_name, alg, load_path, num_frames=20, first_frame=0, resolutio
     # get a rollout of the policy
     max_ep_len = first_frame + num_frames + 1
     history = rollout(model, env, max_ep_len=max_ep_len)
+    #env.close()
     
     # save history
     filehandler = open(save_dir + history_title, 'wb') 
@@ -35,13 +36,13 @@ def make_movie(env_name, alg, load_path, num_frames=20, first_frame=0, resolutio
                 save_dir, density, radius, prefix)
 
     if IVmoveball:
-        make_intervention_movie(env_name, env, model, history_title, num_frames, first_frame, resolution, \
+        make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
                                 save_dir, density, radius)
 
-def make_intervention_movie(env_name, env, model, default_history_path, num_frames=20, first_frame=0, resolution=75, \
-                            save_dir=None, density=5, radius=5, prefix='IVmoveball', \
-                            IVmoveball=True):
+def make_intervention_movie(env_name, alg, env, model, load_path, default_history_path, max_ep_len=3e3, num_frames=20, first_frame=0, resolution=75, \
+                            save_dir=None, density=5, radius=5, prefix='IVmoveball', IVmoveball=True):
     if IVmoveball:
+        print('making movie with IVmoveball intervention using model at ', load_path)
         prefix = "IVmoveball"
         if save_dir is None:
             save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
@@ -49,7 +50,8 @@ def make_intervention_movie(env_name, env, model, default_history_path, num_fram
         # get interventional history
         default_history_file = open(save_dir + default_history_path, 'rb') 
         default_history = pickle.load(default_history_file)
-        history = single_intervention_move_ball(model, env, default_history, move_distance=3, intervene_step=20)
+        history = single_intervention_move_ball(model, env, default_history, move_distance=3, intervene_step=20, max_ep_len=max_ep_len)
+        #env.close()
 
         # generate file names
         movie_title = "{}-{}-{}-{}.mp4".format(prefix, num_frames, env_name.lower(), default_history_path.split(".pkl")[0][-1:])
@@ -62,7 +64,6 @@ def make_intervention_movie(env_name, env, model, default_history_path, num_fram
         # make movie!
         _make_movie(env_name, model, movie_title, history, num_frames, first_frame, resolution, \
                 save_dir, density, radius, prefix)
-
 
 def _make_movie(env_name, model, movie_title, history, num_frames=20, first_frame=0, resolution=75, \
                 save_dir='./saliency_maps/movies/', density=5, radius=5, prefix='default'):
