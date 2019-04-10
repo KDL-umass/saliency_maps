@@ -76,8 +76,8 @@ def _make_movie(env_name, env, model, movie_title, history, num_frames=20, first
                 actor_saliency = score_frame(model, history, ix, radius, density, interp_func=occlude, mode='actor')
                 critic_saliency = score_frame(model, history, ix, radius, density, interp_func=occlude, mode='critic')
             
-                frame = saliency_on_atari_frame(actor_saliency, frame, fudge_factor=meta['actor_ff'], channel=2, sigma=1) #blue
-                frame = saliency_on_atari_frame(critic_saliency, frame, fudge_factor=meta['critic_ff'], channel=0, sigma=1) #red
+                frame = saliency_on_atari_frame(actor_saliency, frame, fudge_factor=meta['actor_ff'], channel=2) #blue
+                frame = saliency_on_atari_frame(critic_saliency, frame, fudge_factor=meta['critic_ff'], channel=0) #red
 
                 plt.imshow(frame) ; plt.title(env_name.lower(), fontsize=15)
                 writer.grab_frame() ; f.clear()
