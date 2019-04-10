@@ -1,16 +1,23 @@
+from saliency_maps.visualize_atari.a2c.saliency import get_env_meta, score_frame, saliency_on_atari_frame, occlude
+from saliency_maps.visualize_atari.a2c.rollout import rollout, single_intervention_move_ball
+
+from baselines.run import train, build_env
+
 import matplotlib.pyplot as plt
 import matplotlib as mpl ; mpl.use("Agg")
 import matplotlib.animation as manimation
 
 import gym, os, sys, time, argparse, pickle
 
-from saliency_maps.visualize_atari.a2c.saliency import get_env_meta, score_frame, saliency_on_atari_frame, occlude
-from saliency_maps.visualize_atari.a2c.rollout import rollout, single_intervention_move_ball
-
-def make_movie(env_name, env, model, num_frames=20, first_frame=0, resolution=75, save_dir='./saliency_maps/movies/', \
+def make_movie(env_name, alg, load_path, num_frames=20, first_frame=0, resolution=75, save_dir=None, \
                 density=5, radius=5, prefix='default', IVmoveball=False):
-    
-    # generate file names
+    print('making movie using model at ', load_path)
+    # set up env and model
+    env, model = setUp(env_name, alg, load_path)
+
+    # generate file names and save_dir
+    if save_dir is None:
+        save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
     movie_title = "{}-{}-{}-{}.mp4".format(prefix, num_frames, env_name.lower(), 1)
     history_title = "{}-{}-{}-{}.pkl".format(prefix, num_frames, env_name.lower(), 1)
     movie_title, history_title = update_filenames(save_dir, movie_title, history_title)
@@ -24,7 +31,7 @@ def make_movie(env_name, env, model, num_frames=20, first_frame=0, resolution=75
     pickle.dump(history, filehandler)
 
     # make movie!
-    _make_movie(env_name, env, model, movie_title, history, num_frames, first_frame, resolution, \
+    _make_movie(env_name, model, movie_title, history, num_frames, first_frame, resolution, \
                 save_dir, density, radius, prefix)
 
     if IVmoveball:
@@ -32,10 +39,13 @@ def make_movie(env_name, env, model, num_frames=20, first_frame=0, resolution=75
                                 save_dir, density, radius)
 
 def make_intervention_movie(env_name, env, model, default_history_path, num_frames=20, first_frame=0, resolution=75, \
-                            save_dir='./saliency_maps/movies/', density=5, radius=5, prefix='IVmoveball', \
+                            save_dir=None, density=5, radius=5, prefix='IVmoveball', \
                             IVmoveball=True):
     if IVmoveball:
         prefix = "IVmoveball"
+        if save_dir is None:
+            save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
+
         # get interventional history
         default_history_file = open(save_dir + default_history_path, 'rb') 
         default_history = pickle.load(default_history_file)
@@ -50,11 +60,11 @@ def make_intervention_movie(env_name, env, model, default_history_path, num_fram
         pickle.dump(history, filehandler)
 
         # make movie!
-        _make_movie(env_name, env, model, movie_title, history, num_frames, first_frame, resolution, \
+        _make_movie(env_name, model, movie_title, history, num_frames, first_frame, resolution, \
                 save_dir, density, radius, prefix)
 
 
-def _make_movie(env_name, env, model, movie_title, history, num_frames=20, first_frame=0, resolution=75, \
+def _make_movie(env_name, model, movie_title, history, num_frames=20, first_frame=0, resolution=75, \
                 save_dir='./saliency_maps/movies/', density=5, radius=5, prefix='default'):
     # set up dir variables and environment
     load_dir = env_name.lower()
@@ -102,21 +112,36 @@ def update_filenames(directory, movie_file, history_file):
 
     return movie_file, history_file
 
+def setUp(env, alg, load_path):
+    args = Bunch({'env':env, 'alg':alg, 'num_timesteps':0, 'seed':None, 'num_env':1, 'network':None})
+    extra_args = {'load_path':load_path}
+
+    model, env = train(args, extra_args)
+    env.close()
+    env = build_env(args, extra_args)
+
+    return env, model
+
+class Bunch(object):
+  def __init__(self, adict):
+    self.__dict__.update(adict)
+
 # user might also want to access make_movie function from some other script
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description=None)
-    parser.add_argument('-en', '--env_name', default='BreakoutToyboxNoFrameskip-v4', type=str, help='name of gym environment')
-    parser.add_argument('-e', '--env', help='baselines environment object')
-    parser.add_argument('-m', '--model', help='baselines model object')
+    parser.add_argument('-e', '--env_name', default='BreakoutToyboxNoFrameskip-v4', type=str, help='name of gym environment')
+    parser.add_argument('-a', '--alg', help='algorithm used for training')
+    parser.add_argument('-l', '--load_path', help='path to load the model from')
     parser.add_argument('-d', '--density', default=5, type=int, help='density of grid of gaussian blurs')
     parser.add_argument('-r', '--radius', default=5, type=int, help='radius of gaussian blur')
     parser.add_argument('-f', '--num_frames', default=20, type=int, help='number of frames in movie')
-    parser.add_argument('-i', '--first_frame', default=150, type=int, help='index of first frame')
+    parser.add_argument('-i', '--first_frame', default=0, type=int, help='index of first frame')
     parser.add_argument('-dpi', '--resolution', default=75, type=int, help='resolution (dpi)')
-    parser.add_argument('-s', '--save_dir', default='./movies/', type=str, help='dir to save agent logs and checkpoints')
+    parser.add_argument('-s', '--save_dir', default=None, type=str, help='dir to save agent logs and checkpoints')
     parser.add_argument('-p', '--prefix', default='default', type=str, help='prefix to help make video name unique')
+    parser.add_argument('-imb', '--IVmoveball', default=False, type=bool, help='intervention move ball in breakout')
     args = parser.parse_args()
 
-    make_movie(args.env, args.checkpoint, args.num_frames, args.first_frame, args.resolution,
-        args.save_dir, args.density, args.radius, args.prefix, args.overfit_mode)
+    make_movie(args.env_name, args.alg, args.load_path, args.num_frames, args.first_frame, args.resolution,
+        args.save_dir, args.density, args.radius, args.prefix, args.IVmoveball)
