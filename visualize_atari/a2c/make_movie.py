@@ -1,5 +1,5 @@
 from saliency_maps.visualize_atari.a2c.saliency import get_env_meta, score_frame, saliency_on_atari_frame, occlude
-from saliency_maps.visualize_atari.a2c.rollout import rollout, single_intervention_move_ball, single_intervention_modify_score, multiple_intervention_modify_score
+from saliency_maps.visualize_atari.a2c.rollout import *
 
 from baselines.run import train, build_env
 
@@ -10,7 +10,7 @@ import matplotlib.animation as manimation
 import gym, os, sys, time, argparse, pickle
 
 def make_movie(env_name, alg, load_path, num_frames=20, first_frame=0, resolution=75, save_dir=None, \
-                density=5, radius=5, prefix='default', IVmoveball=False, IVmodifyScore=False, IVmultModifyScores=False):
+                density=5, radius=5, prefix='default', IVmoveball=False, IVsymbricks=False, IVmodifyScore=False, IVmultModifyScores=False):
     print('making movie using model at ', load_path)
     # set up env and model
     env, model = setUp(env_name, alg, load_path)
@@ -37,17 +37,21 @@ def make_movie(env_name, alg, load_path, num_frames=20, first_frame=0, resolutio
 
     if IVmoveball:
         make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
-                                save_dir, density, radius, IVmoveball=True, IVmodifyScore=False)
+                                save_dir, density, radius, IVmoveball=True)
     elif IVmodifyScore:
         make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
-                                save_dir, density, radius, IVmoveball=False, IVmodifyScore=True)
+                                save_dir, density, radius, IVmodifyScore=True)
     elif IVmultModifyScores:
         make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
-                                save_dir, density, radius, IVmoveball=False, IVmodifyScore=False, IVmultModifyScores=True)
+                                save_dir, density, radius, IVmultModifyScores=True)
+    elif IVsymbricks:
+        make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
+                                save_dir, density, radius, IVsymbricks=True)
+
 
 def make_intervention_movie(env_name, alg, env, model, load_path, default_history_path, max_ep_len=3e3, num_frames=20, \
                             first_frame=0, resolution=75, save_dir=None, density=5, radius=5, prefix='IVmoveball', \
-                            IVmoveball=True, IVmodifyScore=False, IVmultModifyScores=False):
+                            IVmoveball=False, IVsymbricks=False, IVmodifyScore=False, IVmultModifyScores=False):
     if IVmoveball:
         print('making movie with IVmoveball intervention using model at ', load_path)
         prefix = "IVmoveball"
@@ -58,7 +62,17 @@ def make_intervention_movie(env_name, alg, env, model, load_path, default_histor
         default_history_file = open(save_dir + default_history_path, 'rb') 
         default_history = pickle.load(default_history_file)
         history = single_intervention_move_ball(model, env, default_history, move_distance=5, max_ep_len=max_ep_len)
-        #env.close()
+
+    if IVsymbricks:
+        print('making movie with IVsymbricks intervention using model at ', load_path)
+        prefix = "IVsymbricks"
+        if save_dir is None:
+            save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
+
+        # get interventional history
+        default_history_file = open(save_dir + default_history_path, 'rb') 
+        default_history = pickle.load(default_history_file)
+        history = single_intervention_symmetric_brick(model, env, default_history, max_ep_len=max_ep_len, intervene_step=120)
 
     if IVmodifyScore:
         print('making movie with IVmodifyScore intervention using model at ', load_path)
@@ -171,9 +185,11 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--save_dir', default=None, type=str, help='dir to save agent logs and checkpoints')
     parser.add_argument('-p', '--prefix', default='default', type=str, help='prefix to help make video name unique')
     parser.add_argument('-imb', '--IVmoveball', default=False, type=bool, help='intervention move ball in breakout')
+    parser.add_argument('-imsb', '--IVsymbricks', default=False, type=bool, help='intervention modify symmetry of bricks in breakout')
     parser.add_argument('-ims', '--IVmodifyScore', default=False, type=bool, help='intervention change score mid-game in amidar')
     parser.add_argument('-imms', '--IVmultModifyScores', default=False, type=bool, help='intervention change scores mid-game in amidar')
     args = parser.parse_args()
 
     make_movie(args.env_name, args.alg, args.load_path, args.num_frames, args.first_frame, args.resolution,
-        args.save_dir, args.density, args.radius, args.prefix, args.IVmoveball, args.IVmodifyScore, args.IVmultModifyScores)
+        args.save_dir, args.density, args.radius, args.prefix, args.IVmoveball, args.IVsymbricks, 
+        args.IVmodifyScore, args.IVmultModifyScores)
