@@ -51,9 +51,7 @@ def compute_importance(env_name, alg, model_path, history_path, density=5, radiu
                 frame[pixel[1], pixel[0], 0] = 255
                 frame[pixel[1], pixel[0], 1] = 255
                 frame[pixel[1], pixel[0], 2] = 255
-        plt.imshow(frame)
-        plt.show()
-        '''
+
             #get raw saliency score
             frame = history['color_frame'][i]
             actor_saliency = score_frame(model, history, i, radius, density, interp_func=occlude, mode='actor')
@@ -65,20 +63,23 @@ def compute_importance(env_name, alg, model_path, history_path, density=5, radiu
             for pixels in concept_pixels:
                 score_pixels.append(S[pixels[1]][pixels[0]])
             print(score_pixels)
-            SM_imp.append(np.mean(score_pixels))'''
+            SM_imp.append(np.mean(score_pixels))
 
-            #actions, value, _, _, a_logits = model.step(history['ins'][i])
+        plt.imshow(frame)
+        plt.show()
+        
 
         '''
-    while not done and episode_length <= max_ep_len:
-        episode_length += 1
-        actions, value, _, _, a_logits = model.step(obs)
-        num_lives = turtle.ale.lives()
-        obs, reward, done, info = env.step(actions)
-        epr += reward[0]
-        color_frame = turtle.toybox.get_rgb_frame()
-        state_json = tb.state_to_json()
-    '''
+        #actions, value, _, _, a_logits = model.step(history['ins'][i])
+        while not done and episode_length <= max_ep_len:
+            episode_length += 1
+            actions, value, _, _, a_logits = model.step(obs)
+            num_lives = turtle.ale.lives()
+            obs, reward, done, info = env.step(actions)
+            epr += reward[0]
+            color_frame = turtle.toybox.get_rgb_frame()
+            state_json = tb.state_to_json()
+        '''
 
 def get_env_concepts(env_name):
     global CONCEPTS
