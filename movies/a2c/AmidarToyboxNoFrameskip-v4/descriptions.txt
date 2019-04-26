@@ -1,0 +1,8 @@
+Amidar — modifies score to 0 at a given timestep and forward simulates.
+
+1) default-250...v4-2 : changes score to 0 at time step 20
+2) default-250...v4-3 : changes score to 0 at time step 80
+
+Amidar — modifies score to 0 at a multiple timesteps and forward simulates.
+
+3) default-250...v4-5 : changes score to 0 at time steps [20,40,80,100,120,140]

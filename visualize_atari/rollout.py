@@ -28,8 +28,10 @@ def rollout(model, env, max_ep_len=3e3):
         num_lives = turtle.ale.lives()
         obs, reward, done, info = env.step(actions)
         epr += reward[0]
-        color_frame = turtle.toybox.get_rgb_frame()
+        color_frame = tb.get_rgb_frame()
         state_json = tb.state_to_json()
+
+        #print(a_logits, value, actions)
 
         #save info
         history['ins'].append(obs)
@@ -64,7 +66,7 @@ def single_intervention_move_ball(model, env, rollout_history, max_ep_len=3e3, m
     while episode_length < intervene_step:
         obs, reward, done, info = env.step(rollout_history['actions'][episode_length])
         epr += reward[0]
-        color_frame = turtle.toybox.get_rgb_frame()
+        color_frame = tb.get_rgb_frame()
         state_json = tb.state_to_json()
 
         #save info
@@ -98,7 +100,7 @@ def single_intervention_move_ball(model, env, rollout_history, max_ep_len=3e3, m
         num_lives = turtle.ale.lives()
         obs, reward, done, info = env.step(actions)
         epr += reward[0]
-        color_frame = turtle.toybox.get_rgb_frame()
+        color_frame = tb.get_rgb_frame()
         state_json = tb.state_to_json()
 
         #save info
@@ -134,7 +136,7 @@ def single_intervention_symmetric_brick(model, env, rollout_history, max_ep_len=
     while episode_length < intervene_step:
         obs, reward, done, info = env.step(rollout_history['actions'][episode_length])
         epr += reward[0]
-        color_frame = turtle.toybox.get_rgb_frame()
+        color_frame = tb.get_rgb_frame()
         state_json = tb.state_to_json()
 
         #save info
@@ -178,7 +180,7 @@ def single_intervention_symmetric_brick(model, env, rollout_history, max_ep_len=
         num_lives = turtle.ale.lives()
         obs, reward, done, info = env.step(actions)
         epr += reward[0]
-        color_frame = turtle.toybox.get_rgb_frame()
+        color_frame = tb.get_rgb_frame()
         state_json = tb.state_to_json()
         #time.sleep(1.0/60.0)
 
@@ -215,7 +217,7 @@ def single_intervention_modify_score(model, env, rollout_history, max_ep_len=3e3
     while episode_length < intervene_step:
         obs, reward, done, info = env.step(rollout_history['actions'][episode_length])
         epr += reward[0]
-        color_frame = turtle.toybox.get_rgb_frame()
+        color_frame = tb.get_rgb_frame()
         state_json = tb.state_to_json()
 
         #save info
@@ -236,7 +238,7 @@ def single_intervention_modify_score(model, env, rollout_history, max_ep_len=3e3
         num_lives = turtle.ale.lives()
         obs, reward, done, info = env.step(actions)
         epr += reward[0]
-        color_frame = turtle.toybox.get_rgb_frame()
+        color_frame = tb.get_rgb_frame()
         state_json = tb.state_to_json()
 
         #save info
@@ -272,7 +274,7 @@ def multiple_intervention_modify_score(model, env, rollout_history, max_ep_len=3
     while episode_length < intervene_steps[0]:
         obs, reward, done, info = env.step(rollout_history['actions'][episode_length])
         epr += reward[0]
-        color_frame = turtle.toybox.get_rgb_frame()
+        color_frame = tb.get_rgb_frame()
         state_json = tb.state_to_json()
 
         #save info
@@ -293,7 +295,7 @@ def multiple_intervention_modify_score(model, env, rollout_history, max_ep_len=3
         num_lives = turtle.ale.lives()
         obs, reward, done, info = env.step(actions)
         epr += reward[0]
-        color_frame = turtle.toybox.get_rgb_frame()
+        color_frame = tb.get_rgb_frame()
         state_json = tb.state_to_json()
 
         #intervene
