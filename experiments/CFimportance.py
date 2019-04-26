@@ -14,7 +14,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-CONCEPTS = {"Breakout": ["balls", "paddle"], "Amidar": ["tiles", "player", "enemies", "score", "lives"]}
+CONCEPTS = {"Breakout": ["balls", "paddle", "brick"], "Amidar": ["tiles", "player", "enemies", "score", "lives"]}
 
 #read history and intervene on each timestep
 def compute_importance(env_name, alg, model_path, history_path, density=5, radius=2):
