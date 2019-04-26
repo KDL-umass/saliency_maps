@@ -46,7 +46,7 @@ def compute_importance(env_name, alg, model_path, history_path, density=5, radiu
             concept_pixels = get_concept_pixels(env_name, concept, history['state_json'][i])
             print(concept_pixels)
             
-            #get raw saliency score
+            #change pixels to white to see mapping in the real frame
             for pixel in concept_pixels:
                 frame[pixel[1], pixel[0], 0] = 255
                 frame[pixel[1], pixel[0], 1] = 255
@@ -54,6 +54,7 @@ def compute_importance(env_name, alg, model_path, history_path, density=5, radiu
         plt.imshow(frame)
         plt.show()
         '''
+            #get raw saliency score
             frame = history['color_frame'][i]
             actor_saliency = score_frame(model, history, i, radius, density, interp_func=occlude, mode='actor')
             S = np.zeros((110, 84))
