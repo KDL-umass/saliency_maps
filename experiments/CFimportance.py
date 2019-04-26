@@ -14,7 +14,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-CONCEPTS = {"Breakout": ["balls", "paddle", "brick"], "Amidar": ["tiles", "player", "enemies", "score", "lives"]}
+CONCEPTS = {"Breakout": ["balls", "paddle", "bricks"], "Amidar": ["tiles", "player", "enemies", "score", "lives"]}
 
 #read history and intervene on each timestep
 def compute_importance(env_name, alg, model_path, history_path, density=5, radius=2):
@@ -36,11 +36,10 @@ def compute_importance(env_name, alg, model_path, history_path, density=5, radiu
         tb.write_state_json(history['state_json'][i])
 
         #go through all objects
-
         frame = history['color_frame'][i]
         for concept in concepts:
             interventions_imp = []
-            # print(history['state_json'][i])
+            print(history['state_json'][i])
 
             #get concept location pixels
             concept_pixels = get_concept_pixels(env_name, concept, history['state_json'][i])
@@ -102,7 +101,6 @@ def get_concept_pixels(env_name, concept, state_json):
 def get_breakout_concept_pixels(concept, state_json):
     pixels = []
     print("concept: ", concept)
-    print(state_json[concept])
 
     if concept == "balls":
         ball_pos = (int(state_json[concept][0]['position']['x']), int(state_json[concept][0]['position']['y']))
@@ -123,21 +121,29 @@ def get_breakout_concept_pixels(concept, state_json):
             pixels += [right_pos, left_pos , lower_pos, upper_pos, lower_right_pos, lower_left_pos, upper_left_pos, upper_right_pos]
     elif concept == "paddle":
         paddle_pos = (int(state_json[concept]['position']['x']), int(state_json[concept]['position']['y']))
-        paddle_width = int(state_json['paddle_width'])
-        #pixels.append(paddle_pos)
+        paddle_width = int(state_json['paddle_width']) 
         print("paddle width: ", paddle_width)
 
         for i in range(int(paddle_width/2)+1):
             left_pos = (paddle_pos[0] - i, paddle_pos[1])
             right_pos = (paddle_pos[0] + i, paddle_pos[1])
-            uleft_pos = (paddle_pos[0] - i, paddle_pos[1] + 1)
-            uright_pos = (paddle_pos[0] + i, paddle_pos[1] + 1)
-            uuleft_pos = (paddle_pos[0] - i, paddle_pos[1] + 2)
-            uuright_pos = (paddle_pos[0] + i, paddle_pos[1] + 2)
+            lleft_pos = (paddle_pos[0] - i, paddle_pos[1] + 1)
+            lright_pos = (paddle_pos[0] + i, paddle_pos[1] + 1)
+            llleft_pos = (paddle_pos[0] - i, paddle_pos[1] + 2)
+            llright_pos = (paddle_pos[0] + i, paddle_pos[1] + 2)
             if i == 0:
-                pixels += [left_pos, uleft_pos, uright_pos, uuleft_pos, uuright_pos]
+                pixels += [left_pos, lleft_pos, lright_pos, llleft_pos, llright_pos]
             else:
-                pixels += [left_pos, right_pos, uleft_pos, uright_pos, uuleft_pos, uuright_pos]
+                pixels += [left_pos, right_pos, lleft_pos, lright_pos, llleft_pos, llright_pos]
+    elif concept == "bricks":
+        bricks = state_json[concept]
+        brick_size = (int(bricks[0]['size']['x']), int(bricks[0]['size']['y'])) 
+        upper_left_corner = (int(bricks[0]['position']['x']), int(bricks[0]['position']['y']))
+        lower_right_corner = (int(bricks[-1]['position']['x']) + brick_size[0] - 1, int(bricks[-1]['position']['y']) + brick_size[1] - 1)
+
+        for x in range(lower_right_corner[0] - upper_left_corner[0] + 1):
+            for y in range(lower_right_corner[1] - upper_left_corner[1] + 1):
+                pixels += [(upper_left_corner[0] + x, upper_left_corner[1] + y)]
 
     return pixels
 
