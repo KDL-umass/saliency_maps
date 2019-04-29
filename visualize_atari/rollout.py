@@ -90,9 +90,9 @@ def single_intervention_move_ball(model, env, rollout_history, max_ep_len=3e3, m
         ball_pos_post = intervention.get_ball_position()
         assert ball_pos_post['x'] == ball_pos['x']
 
-        #forward simulate 3 steps with no-op action
-        for i in range(3):
-            tb.apply_action(Input())
+    #forward simulate 3 steps with no-op action
+    for i in range(3):
+        obs, _, _, _ = env.step(0)
 
     while not done and episode_length <= max_ep_len:
         episode_length += 1
@@ -172,7 +172,7 @@ def single_intervention_symmetric_brick(model, env, rollout_history, max_ep_len=
 
     #forward simulate 3 steps with no-op action
     for i in range(3):
-        tb.apply_action(Input())
+        obs, _, _, _ = env.step(0)
 
     while not done and episode_length <= max_ep_len:
         episode_length += 1
@@ -230,7 +230,7 @@ def single_intervention_modify_score(model, env, rollout_history, max_ep_len=3e3
 
         episode_length += 1
 
-    amidar_modify_score(tb, rollout_history, episode_length, abs_score)
+    amidar_modify_score(tb, rollout_history, episode_length, abs_score, env)
 
     while not done and episode_length <= max_ep_len:
         episode_length += 1
@@ -287,7 +287,7 @@ def multiple_intervention_modify_score(model, env, rollout_history, max_ep_len=3
 
         episode_length += 1
 
-    amidar_modify_score(tb, rollout_history, episode_length, abs_score)
+    amidar_modify_score(tb, rollout_history, episode_length, abs_score, env)
 
     while not done and episode_length <= max_ep_len:
         episode_length += 1
@@ -300,7 +300,7 @@ def multiple_intervention_modify_score(model, env, rollout_history, max_ep_len=3
 
         #intervene
         if episode_length in intervene_steps:
-            amidar_modify_score(tb, rollout_history, episode_length, abs_score)
+            amidar_modify_score(tb, rollout_history, episode_length, abs_score, env)
 
         #save info
         history['ins'].append(obs)
@@ -313,7 +313,7 @@ def multiple_intervention_modify_score(model, env, rollout_history, max_ep_len=3
 
     return history
 
-def amidar_modify_score(tb, rollout_history, index, abs_score):
+def amidar_modify_score(tb, rollout_history, index, abs_score, env):
     print("Intervening on score now and forward simulating")
     print("old: ", tb.state_to_json()['score'])
 
@@ -324,4 +324,4 @@ def amidar_modify_score(tb, rollout_history, index, abs_score):
     print("new: ", tb.state_to_json()['score'])
     #forward simulate 3 steps with no-op action
     for i in range(3):
-        tb.apply_action(Input())
+        obs, _, _, _ = env.step(0)
