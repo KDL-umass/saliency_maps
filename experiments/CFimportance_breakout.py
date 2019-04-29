@@ -44,7 +44,7 @@ def compute_importance(env_name, alg, model_path, history_path, density=5, radiu
             # print(history['state_json'][i])
 
             #get concept location pixels
-            concept_pixels = get_concept_pixels(concept, history['state_json'][i])
+            concept_pixels = get_concept_pixels(concept, history['state_json'][i], [frame.shape[0],frame.shape[1]])
             # print(concept_pixels)
             
             #change pixels to white to see mapping in the real frame
@@ -73,7 +73,7 @@ def compute_importance(env_name, alg, model_path, history_path, density=5, radiu
             frame = saliency_on_atari_frame(actor_saliency, frame, fudge_factor=300, channel=2) #blue
             plt.figure()
             plt.imshow(frame)
-            plt.savefig('./saliency_maps/experiments/results/default-250-breakouttoyboxnoframeskip-v4-1/frame{}.png'.format(i))
+            plt.savefig('./saliency_maps/experiments/results/default-150-breakouttoyboxnoframeskip-v4-1/frame{}.png'.format(i))
 
             #apply intervention to concept
             CF_imp_concept = apply_interventions(concept, history['a_logits'][i], tb, history['state_json'][i], env, model, concept_pixels)
@@ -93,12 +93,12 @@ def compute_importance(env_name, alg, model_path, history_path, density=5, radiu
             plt.xlabel('Saliency Score')
             plt.title('Saliency Importance VS Counterfactual Importance for Each Object')
             plt.legend()
-        plt.savefig('./saliency_maps/experiments/results/default-250-breakouttoyboxnoframeskip-v4-1/frame{}_importance.png'.format(i))
+        plt.savefig('./saliency_maps/experiments/results/default-150-breakouttoyboxnoframeskip-v4-1/frame{}_importance.png'.format(i))
 
 def get_env_concepts():
     return CONCEPTS["Breakout"]
 
-def get_concept_pixels(concept, state_json):
+def get_concept_pixels(concept, state_json, size):
     pixels = []
     print("concept: ", concept)
 
@@ -207,6 +207,11 @@ def get_concept_pixels(concept, state_json):
         for x in range(x_partition):
             for y in range(y_partition):
                 pixels += [(upper_left_corner[0] + 2*x_partition + x, upper_left_corner[1] + y_partition + y)]
+
+    #ensure that pixels are not out of scope
+    for pixel in pixels:
+        if pixel[0] >= size[0] or pixel[1] >= size[1]:
+            pixels.remove(pixel)
 
     return pixels
 
