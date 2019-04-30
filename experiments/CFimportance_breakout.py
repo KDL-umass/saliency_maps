@@ -19,7 +19,7 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 #read history and intervene on each timestep
-def compute_importance(env_name, alg, model_path, history_path, density=5, radius=2):
+def compute_importance(env_name, alg, model_path, history_path, num_samples, density=5, radius=2):
     #setup model, env and history
     env, model = setUp(env_name, alg, model_path)
     env.reset()
@@ -73,11 +73,11 @@ def compute_importance(env_name, alg, model_path, history_path, density=5, radiu
             frame = saliency_on_atari_frame(actor_saliency, frame, fudge_factor=300, channel=2) #blue
             plt.figure()
             plt.imshow(frame)
-            plt.savefig('./saliency_maps/experiments/results/default-150-breakouttoyboxnoframeskip-v4-1/frame{}.png'.format(i))
+            plt.savefig('./saliency_maps/experiments/results/default-150-breakouttoyboxnoframeskip-v4-1/num_samples_{}/frame{}.png'.format(num_samples, i))
 
             #apply intervention to concept
-            CF_imp_concept = apply_interventions(concept, history['a_logits'][i], tb, history['state_json'][i], env, model, concept_pixels)
-            CF_imp.append(CF_imp_concept)
+            CF_imp_concept = apply_interventions(concept, history['a_logits'][i], tb, history['state_json'][i], env, model, concept_pixels, num_samples=num_samples)
+            CF_imp.append(np.mean(CF_imp_concept, axis=0))
 
         # plt.imshow(frame)
         # plt.show()
@@ -93,7 +93,7 @@ def compute_importance(env_name, alg, model_path, history_path, density=5, radiu
             plt.xlabel('Saliency Score')
             plt.title('Saliency Importance VS Counterfactual Importance for Each Object')
             plt.legend()
-        plt.savefig('./saliency_maps/experiments/results/default-150-breakouttoyboxnoframeskip-v4-1/frame{}_importance.png'.format(i))
+        plt.savefig('./saliency_maps/experiments/results/default-150-breakouttoyboxnoframeskip-v4-1/num_samples_{}/frame{}_importance.png'.format(num_samples, i))
 
 def get_env_concepts():
     return CONCEPTS["Breakout"]
@@ -215,26 +215,30 @@ def get_concept_pixels(concept, state_json, size):
 
     return pixels
 
-def apply_interventions(concept, a_logits, tb, state_json, env, model, pixels):
+def apply_interventions(concept, a_logits, tb, state_json, env, model, pixels, num_samples):
     CF_imp_concept = []
-    IV_a_logits = []
 
-    #get a_logits from interventions
-    if concept == "balls":
-        IV_a_logits += [intervention_move_ball(tb, state_json, env, model)]
-        IV_a_logits += [intervention_ball_speed(tb, state_json, env, model)]
-    elif concept == "paddle":
-        IV_a_logits += [intervention_move_paddle(tb, state_json, env, model)]
-    elif "bricks" in concept:
-        IV_a_logits += [intervention_flip_bricks(tb, state_json, env, model, pixels)]
-        IV_a_logits += [intervention_remove_bricks(tb, state_json, env, model, pixels)]
-        IV_a_logits += [intervention_remove_rows(tb, state_json, env, model, pixels)]
-        # IV_a_logits += [intervention_add_channel(tb, state_json, env, model, pixels)]
+    for i in range(num_samples):
+        IV_a_logits = []
+        CF_imp = []
+        #get a_logits from interventions
+        if concept == "balls":
+            IV_a_logits += [intervention_move_ball(tb, state_json, env, model)]
+            IV_a_logits += [intervention_ball_speed(tb, state_json, env, model)]
+        elif concept == "paddle":
+            IV_a_logits += [intervention_move_paddle(tb, state_json, env, model)]
+        elif "bricks" in concept:
+            IV_a_logits += [intervention_flip_bricks(tb, state_json, env, model, pixels)]
+            IV_a_logits += [intervention_remove_bricks(tb, state_json, env, model, pixels)]
+            IV_a_logits += [intervention_remove_rows(tb, state_json, env, model, pixels)]
+            # IV_a_logits += [intervention_add_channel(tb, state_json, env, model, pixels)]
 
-    #get euclidean distance of a_logits before and after intervention
-    for IV_logits in IV_a_logits:
-        euc_dist = np.linalg.norm(IV_logits - a_logits)
-        CF_imp_concept += [euc_dist]
+        #get euclidean distance of a_logits before and after intervention
+        for IV_logits in IV_a_logits:
+            euc_dist = np.linalg.norm(IV_logits - a_logits)
+            CF_imp += [euc_dist]
+        print("CF_imp: ", CF_imp)
+        CF_imp_concept += [CF_imp]
 
     return CF_imp_concept
 
@@ -289,16 +293,18 @@ def intervention_ball_speed(tb, state_json, env, model):
 def intervention_move_paddle(tb, state_json, env, model):
     distances = range(5,16)
 
-    print("Intervening on ball velocity now and forward simulating")
+    print("Intervening on paddle position now and forward simulating")
     with BreakoutIntervention(tb) as intervention: 
         move_distance = random.choice(distances)
         direction = random.choice(range(2))
 
         pos = intervention.get_paddle_position()
+        print("old: ", pos)
         if direction == 0:
             pos['x'] = pos['x'] + move_distance
         else:
             pos['x'] = pos['x'] - move_distance
+        print("new: ", pos)
         intervention.set_paddle_position(pos)
 
     #forward simulate 3 steps with no-op action
@@ -400,9 +406,10 @@ def get_pixel_bricks(tb, pixels):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('-e', '--env_name', default='BreakoutToyboxNoFrameskip-v4', type=str, help='name of gym environment')
+    parser.add_argument('-n', '--num_samples', default=10, help='number of samples to compute importance over')
     parser.add_argument('-a', '--alg', help='algorithm used for training')
     parser.add_argument('-l', '--load_path', help='path to load the model from')
     parser.add_argument('-hp', '--history_path', help='path of history of a executed episode')
     args = parser.parse_args()
 
-    compute_importance(args.env_name, args.alg, args.load_path, args.history_path)
+    compute_importance(args.env_name, args.alg, args.load_path, args.history_path, args.num_samples)
