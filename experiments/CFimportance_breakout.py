@@ -20,11 +20,12 @@ import matplotlib.pyplot as plt
 
 #read history and intervene on each timestep
 def compute_importance(env_name, alg, model_path, history_path, num_samples, density=5, radius=2):
-    #setup model, env and history
+    #setup model, env, history and dictionary to store data in
     env, model = setUp(env_name, alg, model_path)
     env.reset()
     with open(history_path, "rb") as output_file:
         history = pickle.load(output_file)
+    save_dir = "./saliency_maps/experiments/results/"
 
     print("Running through history")
     turtle = atari_wrappers.get_turtle(env)
@@ -32,20 +33,18 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
     concepts = get_env_concepts()
 
     #run through history
+    episode_importance = []
     for i in range(30, len(history['ins'])):
-        SM_imp = []
-        CF_imp = []
+        concept_imp = {}
         tb.write_state_json(history['state_json'][i])
 
         #go through all objects
         frame = history['color_frame'][i]
         for concept in concepts:
-            interventions_imp = []
-            # print(history['state_json'][i])
+            concept_imp[concept] = {}
 
             #get concept location pixels
             concept_pixels = get_concept_pixels(concept, history['state_json'][i], [frame.shape[0],frame.shape[1]])
-            # print(concept_pixels)
             
             #change pixels to white to see mapping in the real frame
             # for pixel in concept_pixels:
@@ -61,52 +60,40 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
             S = np.zeros((110, 84))
             S[18:102, :] = actor_saliency
             S = imresize(actor_saliency, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
-            # print(frame.shape, S.shape)
             score_pixels = []
             for pixels in concept_pixels:
                 score_pixels.append(S[pixels[1]][pixels[0]])
-            # print(score_pixels)
-            SM_imp.append(np.mean(score_pixels))
-            # print(SM_imp)
+            concept_imp[concept]["SM_imp"] = np.mean(score_pixels)
 
             #get frame with saliency
             frame = saliency_on_atari_frame(actor_saliency, frame, fudge_factor=300, channel=2) #blue
             plt.figure()
             plt.imshow(frame)
-            plt.savefig('./saliency_maps/experiments/results/default-150-breakouttoyboxnoframeskip-v4-1/num_samples_{}/frame{}.png'.format(num_samples, i))
+            plt.savefig(save_dir + 'default-150-breakouttoyboxnoframeskip-v4-1/num_samples_{}/frame{}.png'.format(num_samples, i))
 
-            #apply intervention to concept
-            CF_imp_concept = apply_interventions(concept, history['a_logits'][i], tb, history['state_json'][i], env, model, concept_pixels, num_samples=num_samples)
-            CF_imp.append(np.mean(CF_imp_concept, axis=0))
+            #apply interventions to concept
+            CF_imp_concept, CF_IV_intensity = apply_interventions(concept, history['a_logits'][i], tb, history['state_json'][i], \
+                                                env, model, concept_pixels, num_samples=num_samples)
+            concept_imp[concept]["CF_imp"] = CF_imp_concept
+            concept_imp[concept]["IV_intensity"] = CF_IV_intensity
 
-        # plt.imshow(frame)
-        # plt.show()
+        episode_importance += [concept_imp]
 
-        #scatter plot of SM vs CF importance
-        plt.figure()
-        for j, cf_concept_imp in enumerate(CF_imp):
-            sm_concept_imp = len(cf_concept_imp)*[SM_imp[j]]
-            print("SM_concept_imp: ", sm_concept_imp)
-            print("CF_concept_imp: ",cf_concept_imp)
-            plt.scatter(sm_concept_imp, cf_concept_imp, label=concepts[j])
-            plt.ylabel('Euclidean Distance of Network Action Logits')
-            plt.xlabel('Saliency Score')
-            plt.title('Saliency Importance VS Counterfactual Importance for Each Object')
-            plt.legend()
-        plt.savefig('./saliency_maps/experiments/results/default-150-breakouttoyboxnoframeskip-v4-1/num_samples_{}/frame{}_importance.png'.format(num_samples, i))
+    #save data
+    print(episode_importance)
+    filehandler = open(save_dir + 'default-150-breakouttoyboxnoframeskip-v4-1/num_samples_{}/episode_importance.pkl'.format(num_samples), 'wb') 
+    pickle.dump(episode_importance, filehandler)
 
 def get_env_concepts():
     return CONCEPTS["Breakout"]
 
 def get_concept_pixels(concept, state_json, size):
     pixels = []
-    print("concept: ", concept)
 
     if concept == "balls":
         ball_pos = (int(state_json[concept][0]['position']['x']), int(state_json[concept][0]['position']['y']))
         ball_radius = int(state_json['ball_radius'])
         pixels += [ball_pos]
-        print("ball radius: ", ball_radius)
 
         for i in range(1, ball_radius+1):
             right_pos = (ball_pos[0] + i, ball_pos[1])
@@ -122,7 +109,6 @@ def get_concept_pixels(concept, state_json, size):
     elif concept == "paddle":
         paddle_pos = (int(state_json[concept]['position']['x']), int(state_json[concept]['position']['y']))
         paddle_width = int(state_json['paddle_width']) 
-        print("paddle width: ", paddle_width)
 
         for i in range(int(paddle_width/2)+1):
             left_pos = (paddle_pos[0] - i, paddle_pos[1])
@@ -216,43 +202,46 @@ def get_concept_pixels(concept, state_json, size):
     return pixels
 
 def apply_interventions(concept, a_logits, tb, state_json, env, model, pixels, num_samples):
+    global INTERVENTIONS
+
     CF_imp_concept = []
+    CF_IV_intensity = []
+    if "bricks" in concept:
+        concept = "bricks"
+    interventions = INTERVENTIONS[concept]
 
     for i in range(num_samples):
         IV_a_logits = []
+        CF_intensity = []
         CF_imp = []
         #get a_logits from interventions
-        if concept == "balls":
-            IV_a_logits += [intervention_move_ball(tb, state_json, env, model)]
-            IV_a_logits += [intervention_ball_speed(tb, state_json, env, model)]
-        elif concept == "paddle":
-            IV_a_logits += [intervention_move_paddle(tb, state_json, env, model)]
-        elif "bricks" in concept:
-            IV_a_logits += [intervention_flip_bricks(tb, state_json, env, model, pixels)]
-            IV_a_logits += [intervention_remove_bricks(tb, state_json, env, model, pixels)]
-            IV_a_logits += [intervention_remove_rows(tb, state_json, env, model, pixels)]
-            # IV_a_logits += [intervention_add_channel(tb, state_json, env, model, pixels)]
+        for IV in interventions:
+            logits, intensity = IV(tb, state_json, env, model, pixels)
+            IV_a_logits += [logits]
+            CF_intensity += [intensity]
 
         #get euclidean distance of a_logits before and after intervention
         for IV_logits in IV_a_logits:
             euc_dist = np.linalg.norm(IV_logits - a_logits)
             CF_imp += [euc_dist]
         print("CF_imp: ", CF_imp)
+        print("CF_intensity: ", CF_intensity)
         CF_imp_concept += [CF_imp]
+        CF_IV_intensity += [CF_intensity]
 
-    return CF_imp_concept
+    return CF_imp_concept, CF_IV_intensity
 
-def intervention_move_ball(tb, state_json, env, model):
+def intervention_move_ball(tb, state_json, env, model, pixels):
     distances = range(5,16)
 
     print("Intervening on ball position now and forward simulating")
     with BreakoutIntervention(tb) as intervention: 
         move_distance = random.choice(distances)
         ball_pos = intervention.get_ball_position()
-        print("old: ", ball_pos)
+        # print("old: ", ball_pos)
         ball_pos['x'] = ball_pos['x'] + move_distance
         ball_pos['y'] = ball_pos['y'] + move_distance
-        print("new: ", ball_pos)
+        # print("new: ", ball_pos)
         intervention.set_ball_position(ball_pos)
         ball_pos_post = intervention.get_ball_position()
         assert ball_pos_post['x'] == ball_pos['x']
@@ -265,9 +254,9 @@ def intervention_move_ball(tb, state_json, env, model):
     actions, value, _, _, a_logits = model.step(obs)
     tb.write_state_json(state_json) 
 
-    return list(a_logits)
+    return list(a_logits), move_distance
 
-def intervention_ball_speed(tb, state_json, env, model):
+def intervention_ball_speed(tb, state_json, env, model, pixels):
     delta = range(1,4)
 
     print("Intervening on ball velocity now and forward simulating")
@@ -288,9 +277,9 @@ def intervention_ball_speed(tb, state_json, env, model):
     actions, value, _, _, a_logits = model.step(obs)
     tb.write_state_json(state_json) 
 
-    return list(a_logits)
+    return list(a_logits), delta_velocity
 
-def intervention_move_paddle(tb, state_json, env, model):
+def intervention_move_paddle(tb, state_json, env, model, pixels):
     distances = range(5,16)
 
     print("Intervening on paddle position now and forward simulating")
@@ -299,12 +288,11 @@ def intervention_move_paddle(tb, state_json, env, model):
         direction = random.choice(range(2))
 
         pos = intervention.get_paddle_position()
-        print("old: ", pos)
-        if direction == 0:
-            pos['x'] = pos['x'] + move_distance
-        else:
-            pos['x'] = pos['x'] - move_distance
-        print("new: ", pos)
+        # print("old: ", pos)
+        if direction != 0:
+            move_distance *= -1
+        pos['x'] = pos['x'] + move_distance
+        # print("new: ", pos)
         intervention.set_paddle_position(pos)
 
     #forward simulate 3 steps with no-op action
@@ -315,10 +303,11 @@ def intervention_move_paddle(tb, state_json, env, model):
     actions, value, _, _, a_logits = model.step(obs)
     tb.write_state_json(state_json) 
 
-    return list(a_logits)
+    return list(a_logits), move_distance
 
 def intervention_flip_bricks(tb, state_json, env, model, pixels):
     bricks_in_pixels, brick_indices = get_pixel_bricks(tb, pixels)
+    num_dead_bricks = 0
 
     print("Intervening on flipping bricks now and forward simulating")
     with BreakoutIntervention(tb) as intervention: 
@@ -326,6 +315,7 @@ def intervention_flip_bricks(tb, state_json, env, model, pixels):
             if bricks_in_pixels[i]['alive']:
                 intervention.set_brick(brick_indices[i], alive=False)
             else:
+                num_dead_bricks += 1
                 intervention.set_brick(brick_indices[i], alive=True)
 
     #forward simulate 3 steps with no-op action
@@ -336,18 +326,20 @@ def intervention_flip_bricks(tb, state_json, env, model, pixels):
     actions, value, _, _, a_logits = model.step(obs)
     tb.write_state_json(state_json) 
 
-    return list(a_logits)
+    return list(a_logits), num_dead_bricks
 
 def intervention_remove_bricks(tb, state_json, env, model, pixels):
     #select 5 random bricks from 18 bricks in sub space
     remove_bricks = random.sample(range(18), 5)
     bricks_in_pixels, brick_indices = get_pixel_bricks(tb, pixels)
+    remove_bricks_depth = 0
 
     print("Intervening on removing bricks now and forward simulating")
     with BreakoutIntervention(tb) as intervention: 
         for i in remove_bricks:
             if bricks_in_pixels[i]['alive']:
-                print("Removing brick ", bricks_in_pixels[i])
+                # print("Removing brick row: {}, col: {}".format(bricks_in_pixels[i]['row'],bricks_in_pixels[i]['col']))
+                remove_bricks_depth += bricks_in_pixels[i]['points']
                 intervention.set_brick(brick_indices[i], alive=False)
 
     #forward simulate 3 steps with no-op action
@@ -358,7 +350,7 @@ def intervention_remove_bricks(tb, state_json, env, model, pixels):
     actions, value, _, _, a_logits = model.step(obs)
     tb.write_state_json(state_json) 
 
-    return list(a_logits)
+    return list(a_logits), remove_bricks_depth
 
 def intervention_remove_rows(tb, state_json, env, model, pixels):
     bricks_in_pixels, brick_indices = get_pixel_bricks(tb, pixels)
@@ -379,7 +371,7 @@ def intervention_remove_rows(tb, state_json, env, model, pixels):
     actions, value, _, _, a_logits = model.step(obs)
     tb.write_state_json(state_json) 
 
-    return list(a_logits)
+    return list(a_logits), remove_row
 
 def intervention_add_channel(tb, state_json, env, model, pixels):
     return None
@@ -403,10 +395,15 @@ def get_pixel_bricks(tb, pixels):
 
     return bricks_in_pixels, brick_indices
 
+#BAD CODE PRACTICE!!
+INTERVENTIONS = {"balls": [intervention_move_ball, intervention_ball_speed], \
+                "paddle": [intervention_move_paddle], \
+                "bricks": [intervention_flip_bricks, intervention_remove_bricks, intervention_remove_rows]}
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('-e', '--env_name', default='BreakoutToyboxNoFrameskip-v4', type=str, help='name of gym environment')
-    parser.add_argument('-n', '--num_samples', default=10, help='number of samples to compute importance over')
+    parser.add_argument('-n', '--num_samples', default=10, type=int, help='number of samples to compute importance over')
     parser.add_argument('-a', '--alg', help='algorithm used for training')
     parser.add_argument('-l', '--load_path', help='path to load the model from')
     parser.add_argument('-hp', '--history_path', help='path of history of a executed episode')
