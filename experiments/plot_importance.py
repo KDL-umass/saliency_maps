@@ -203,8 +203,8 @@ if __name__ == '__main__':
     with open(args.load_path, 'rb') as f:
         episode_importance = pickle.load(f)
 
-    # plot_impCorr_perFrame(episode_importance, args.num_samples)
-    plot_impCorr_perIV(episode_importance, args.num_samples)
-    plot_imp_overTime(episode_importance, args.num_samples)
-    plot_CFimp_variability(episode_importance, args.num_samples)
-    plot_IVintensity_corr(episode_importance, args.num_samples)
+    plot_impCorr_perFrame(episode_importance, args.num_samples)
+    # plot_impCorr_perIV(episode_importance, args.num_samples)
+    # plot_imp_overTime(episode_importance, args.num_samples)
+    # plot_CFimp_variability(episode_importance, args.num_samples)
+    # plot_IVintensity_corr(episode_importance, args.num_samples)

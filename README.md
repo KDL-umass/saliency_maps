@@ -9,3 +9,7 @@ In order to build saliency videos from [Visualizing and Understanding Atari Agen
 To run the saliency vs counterfactual importance experiment, run the following:
 
 `./start_python -m saliency_maps.experiments.CFimportance_breakout --env_name=BreakoutToyboxNoFrameskip-v4 --alg=a2c --load_path=[trained model location] --history_path=[pkl file containing history from visualization]`
+
+To generate plots from saliency vs counterfactual importance data, run the following
+
+`./start_python -m saliency_maps.experiments.plot_importance --env_name=BreakoutToyboxNoFrameskip-v4 --alg=a2c --load_path=[trained model location] --history_path=[pkl file containing history from visualization]`

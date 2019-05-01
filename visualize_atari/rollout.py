@@ -400,7 +400,6 @@ def multiple_intervention_decrement_score(model, env, rollout_history, max_ep_le
         #intervene on score
         state_json['score'] -= 1
         tb.write_state_json(state_json)
-
         color_frame = tb.get_rgb_frame()
 
         #save info

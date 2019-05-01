@@ -77,7 +77,7 @@ def get_env_concepts():
     return CONCEPTS["Amidar"]
 
 def apply_intervention(state_json, concept, a_logits, tb):
-    if concept=="BreakoutToyboxNoFrameskip-v4":
+    # if concept=="BreakoutToyboxNoFrameskip-v4":
     return None
 
 def get_concept_pixels(concept, state_json):
