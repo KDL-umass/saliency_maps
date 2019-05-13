@@ -26,6 +26,8 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
     with open(history_path, "rb") as output_file:
         history = pickle.load(output_file)
     save_dir = "./saliency_maps/experiments/results/"
+    history_name = history_path.split("/")[-1][:-4]
+    print(history_name)
 
     print("Running through history")
     turtle = atari_wrappers.get_turtle(env)
@@ -44,7 +46,7 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
             concept_imp[concept] = {}
 
             #get concept location pixels
-            concept_pixels = get_concept_pixels(concept, history['state_json'][i], [frame.shape[0],frame.shape[1]])
+            concept_pixels = get_concept_pixels(concept, history['state_json'][i], [frame.shape[1],frame.shape[0]])
             
             #change pixels to white to see mapping in the real frame
             # for pixel in concept_pixels:
@@ -69,7 +71,7 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
             frame = saliency_on_atari_frame(actor_saliency, frame, fudge_factor=300, channel=2) #blue
             plt.figure()
             plt.imshow(frame)
-            plt.savefig(save_dir + 'default-150-breakouttoyboxnoframeskip-v4-1/num_samples_{}/frame{}.png'.format(num_samples, i))
+            plt.savefig(save_dir + history_name + '/num_samples_{}/frame{}.png'.format(num_samples, i))
 
             #apply interventions to concept
             CF_imp_concept, CF_IV_intensity = apply_interventions(concept, history['a_logits'][i], tb, history['state_json'][i], \
@@ -81,7 +83,7 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
 
     #save data
     print(episode_importance)
-    filehandler = open(save_dir + 'default-150-breakouttoyboxnoframeskip-v4-1/num_samples_{}/episode_importance.pkl'.format(num_samples), 'wb') 
+    filehandler = open(save_dir + history_name + '/num_samples_{}/episode_importance.pkl'.format(num_samples), 'wb') 
     pickle.dump(episode_importance, filehandler)
 
 def get_env_concepts():
@@ -196,7 +198,9 @@ def get_concept_pixels(concept, state_json, size):
 
     #ensure that pixels are not out of scope
     for pixel in pixels:
-        if pixel[0] >= size[0] or pixel[1] >= size[1]:
+        if (pixel[0] >= size[0] or pixel[0] <= 0) or (pixel[1] >= size[1] or pixel[1] <= 0):
+            print(pixel[0], pixel[1])
+            print(size[0], pixel[1])
             pixels.remove(pixel)
 
     return pixels
