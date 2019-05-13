@@ -1,0 +1,13 @@
+Breakout — single move ball intervention.
+
+1) default-250...v4-6 : moves ballPos+1 at step 20
+2) default-250...v4-1 : moves ballPos+2 at step 20
+3) default-250...v4-2 : moves ballPos+5 at step 20
+4) default-150...v4-3 : moves ballPos+5 at step 20
+
+Breakout - single symmetric bricks intervention.
+
+4) default-65...v4-1 : flips bricks at step 50
+5) default-140...v4-2 : flips bricks at step 120
+6) default-150...v4-1 : flips bricks at step 120
+7) default-150...v4-2 : flips bricks at step 120
