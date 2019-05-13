@@ -17,8 +17,19 @@ def rollout(model, env, max_ep_len=3e3):
     obs = env.reset()
     turtle = atari_wrappers.get_turtle(env)
     tb = turtle.toybox
-    start_state_json = tb.state_to_json()
-    history['state_json'].append(start_state_json)
+    tb.new_game()
+
+    #add start state to history
+    state_json = tb.state_to_json()
+    color_frame = tb.get_rgb_frame()
+    history['ins'].append(obs)
+    history['a_logits'].append(None)
+    history['values'].append(None)
+    history['actions'].append(None)
+    history['rewards'].append(epr)
+    history['color_frame'].append(color_frame)
+    history['state_json'].append(state_json)
+    episode_length += 1
 
     # This is a hack to get the starting screen, which throws an error in ALE for amidar
     num_steps = -1
@@ -44,6 +55,10 @@ def rollout(model, env, max_ep_len=3e3):
         history['state_json'].append(state_json)
         print('\tstep # {}, reward {:.0f}'.format(episode_length, epr), end='\r')
 
+    #check whether output has same length for different keys
+    for key in history.keys():
+        assert(len(history['ins']) == len(history[key]))
+
     return history
 
 def single_intervention_move_ball(model, env, rollout_history, max_ep_len=3e3, move_distance=1, intervene_step=20):
@@ -59,8 +74,18 @@ def single_intervention_move_ball(model, env, rollout_history, max_ep_len=3e3, m
     #start new game and set start state to the same state as original game
     tb.new_game()
     tb.write_state_json(rollout_history['state_json'][0])
-    start_state_json = tb.state_to_json()
-    history['state_json'].append(start_state_json)
+
+    #add start state to history
+    state_json = tb.state_to_json()
+    color_frame = tb.get_rgb_frame()
+    history['ins'].append(obs)
+    history['a_logits'].append(None)
+    history['values'].append(None)
+    history['actions'].append(None)
+    history['rewards'].append(epr)
+    history['color_frame'].append(color_frame)
+    history['state_json'].append(state_json)
+    episode_length += 1
 
     # This is a hack to get the starting screen, which throws an error in ALE for amidar
     num_steps = -1
@@ -116,6 +141,10 @@ def single_intervention_move_ball(model, env, rollout_history, max_ep_len=3e3, m
         history['state_json'].append(state_json)
         print('\tstep # {}, reward {:.0f}'.format(episode_length, epr), end='\r')
 
+    #check whether output has same length for different keys
+    for key in history.keys():
+        assert(len(history['ins']) == len(history[key]))
+
     return history
 
 def single_intervention_symmetric_brick(model, env, rollout_history, max_ep_len=3e3, intervene_step=20):
@@ -131,8 +160,18 @@ def single_intervention_symmetric_brick(model, env, rollout_history, max_ep_len=
     #start new game and set start state to the same state as original game
     tb.new_game()
     tb.write_state_json(rollout_history['state_json'][0])
-    start_state_json = tb.state_to_json()
-    history['state_json'].append(start_state_json)
+
+    #add start state to history
+    state_json = tb.state_to_json()
+    color_frame = tb.get_rgb_frame()
+    history['ins'].append(obs)
+    history['a_logits'].append(None)
+    history['values'].append(None)
+    history['actions'].append(None)
+    history['rewards'].append(epr)
+    history['color_frame'].append(color_frame)
+    history['state_json'].append(state_json)
+    episode_length += 1
 
     # This is a hack to get the starting screen, which throws an error in ALE for amidar
     num_steps = -1
@@ -199,6 +238,10 @@ def single_intervention_symmetric_brick(model, env, rollout_history, max_ep_len=
         history['state_json'].append(state_json)
         print('\tstep # {}, reward {:.0f}'.format(episode_length, epr), end='\r')
 
+    #check whether output has same length for different keys
+    for key in history.keys():
+        assert(len(history['ins']) == len(history[key]))
+
     return history
 
 def single_intervention_modify_score(model, env, rollout_history, max_ep_len=3e3, abs_score=0, intervene_step=20):
@@ -214,8 +257,18 @@ def single_intervention_modify_score(model, env, rollout_history, max_ep_len=3e3
     #start new game and set start state to the same state as original game
     tb.new_game()
     tb.write_state_json(rollout_history['state_json'][0])
-    start_state_json = tb.state_to_json()
-    history['state_json'].append(start_state_json)
+
+    #add start state to history
+    state_json = tb.state_to_json()
+    color_frame = tb.get_rgb_frame()
+    history['ins'].append(obs)
+    history['a_logits'].append(None)
+    history['values'].append(None)
+    history['actions'].append(None)
+    history['rewards'].append(epr)
+    history['color_frame'].append(color_frame)
+    history['state_json'].append(state_json)
+    episode_length += 1
 
     # This is a hack to get the starting screen, which throws an error in ALE for amidar
     num_steps = -1
@@ -258,11 +311,21 @@ def single_intervention_modify_score(model, env, rollout_history, max_ep_len=3e3
         history['state_json'].append(state_json)
         print('\tstep # {}, reward {:.0f}'.format(episode_length, epr), end='\r')
 
+    #check whether output has same length for different keys
+    for key in history.keys():
+        assert(len(history['ins']) == len(history[key]))
+
     return history
 
 def multiple_intervention_modify_score(model, env, rollout_history, max_ep_len=3e3, abs_score=0, intervene_steps=[20,40,80,100,120,140], random_score=False):
     history = {'ins': [], 'a_logits': [], 'values': [], 'actions': [], 'rewards': [], 'color_frame': [], 'state_json': []}
     episode_length, epr, done = 0, 0, False
+
+    #pick random intervene steps with delta between 5 and 20
+    IV_step_delta = random.randint(5,21)
+    intervene_steps = range(IV_step_delta, int(max_ep_len), IV_step_delta)
+    print("intervene steps: ", intervene_steps)
+    print("rollout_history len: ", len(rollout_history['ins']))
 
     #logger.log("Running trained model")
     print("Running trained model")
@@ -273,12 +336,23 @@ def multiple_intervention_modify_score(model, env, rollout_history, max_ep_len=3
     #start new game and set start state to the same state as original game
     tb.new_game()
     tb.write_state_json(rollout_history['state_json'][0])
-    start_state_json = tb.state_to_json()
-    history['state_json'].append(start_state_json)
+    
+    #add start state to history
+    state_json = tb.state_to_json()
+    color_frame = tb.get_rgb_frame()
+    history['ins'].append(obs)
+    history['a_logits'].append(None)
+    history['values'].append(None)
+    history['actions'].append(None)
+    history['rewards'].append(epr)
+    history['color_frame'].append(color_frame)
+    history['state_json'].append(state_json)
+    episode_length += 1
 
     # This is a hack to get the starting screen, which throws an error in ALE for amidar
     num_steps = -1
 
+    #run episode as original until first intervene step
     while episode_length < intervene_steps[0]:
         obs, reward, done, info = env.step(rollout_history['actions'][episode_length])
         epr += reward[0]
@@ -298,6 +372,7 @@ def multiple_intervention_modify_score(model, env, rollout_history, max_ep_len=3
 
     amidar_modify_score(tb, rollout_history, episode_length, abs_score, env, random_score)
 
+    #forward simulate and intervene at all consequent intervene steps
     while not done and episode_length <= max_ep_len:
         episode_length += 1
         actions, value, _, _, a_logits = model.step(obs)
@@ -309,7 +384,8 @@ def multiple_intervention_modify_score(model, env, rollout_history, max_ep_len=3
 
         #intervene
         if episode_length in intervene_steps:
-            amidar_modify_score(tb, rollout_history, episode_length, abs_score, env)
+            print(episode_length)
+            amidar_modify_score(tb, rollout_history, episode_length, abs_score, env, random_score)
 
         #save info
         history['ins'].append(obs)
@@ -321,11 +397,18 @@ def multiple_intervention_modify_score(model, env, rollout_history, max_ep_len=3
         history['state_json'].append(state_json)
         print('\tstep # {}, reward {:.0f}'.format(episode_length, epr), end='\r')
 
+    #check whether output has same length for different keys
+    for key in history.keys():
+        assert(len(history['ins']) == len(history[key]))
+
     return history
 
 def multiple_intervention_nonchanging_score(model, env, rollout_history, max_ep_len=3e3, abs_score=0):
     history = {'ins': [], 'a_logits': [], 'values': [], 'actions': [], 'rewards': [], 'color_frame': [], 'state_json': []}
     episode_length, epr, done = 0, 0, False
+
+    #pick random non-changing score
+    abs_score = random.randint(0,201)
 
     #logger.log("Running trained model")
     print("Running trained model")
@@ -336,8 +419,19 @@ def multiple_intervention_nonchanging_score(model, env, rollout_history, max_ep_
     #start new game and set start state to the same state as original game
     tb.new_game()
     tb.write_state_json(rollout_history['state_json'][0])
-    start_state_json = tb.state_to_json()
-    history['state_json'].append(start_state_json)
+    state_json = tb.state_to_json()
+    
+    #add start state to history
+    state_json = tb.state_to_json()
+    color_frame = tb.get_rgb_frame()
+    history['ins'].append(obs)
+    history['a_logits'].append(None)
+    history['values'].append(None)
+    history['actions'].append(None)
+    history['rewards'].append(epr)
+    history['color_frame'].append(color_frame)
+    history['state_json'].append(state_json)
+    episode_length += 1
 
     # This is a hack to get the starting screen, which throws an error in ALE for amidar
     num_steps = -1
@@ -351,6 +445,7 @@ def multiple_intervention_nonchanging_score(model, env, rollout_history, max_ep_
         state_json = tb.state_to_json()
 
         #intervene on score
+        # print("Intervening on score now to be non-changing and forward simulating")
         state_json['score'] = abs_score
         tb.write_state_json(state_json)
 
@@ -366,11 +461,19 @@ def multiple_intervention_nonchanging_score(model, env, rollout_history, max_ep_
         history['state_json'].append(state_json)
         print('\tstep # {}, reward {:.0f}'.format(episode_length, epr), end='\r')
 
+    #check whether output has same length for different keys
+    for key in history.keys():
+        assert(len(history['ins']) == len(history[key]))
+
     return history
 
-def multiple_intervention_decrement_score(model, env, rollout_history, max_ep_len=3e3, max_score=200):
+def multiple_intervention_decrement_score(model, env, rollout_history, max_ep_len=3e3, max_score=3e3):
     history = {'ins': [], 'a_logits': [], 'values': [], 'actions': [], 'rewards': [], 'color_frame': [], 'state_json': []}
     episode_length, epr, done = 0, 0, False
+
+    #pick random decrement size
+    decrement_size = random.randint(1,21)
+    print("decrement_size: ", decrement_size)
 
     #logger.log("Running trained model")
     print("Running trained model")
@@ -381,10 +484,20 @@ def multiple_intervention_decrement_score(model, env, rollout_history, max_ep_le
     #start new game and set start state to the same state as original game with max_score
     tb.new_game()
     state_json = rollout_history['state_json'][0]
-    state_json['score'] = max_score
+    state_json['score'] = int(max_score)
     tb.write_state_json(state_json)
-    start_state_json = tb.state_to_json()
-    history['state_json'].append(start_state_json)
+    
+    #add start state to history
+    state_json = tb.state_to_json()
+    color_frame = tb.get_rgb_frame()
+    history['ins'].append(obs)
+    history['a_logits'].append(None)
+    history['values'].append(None)
+    history['actions'].append(None)
+    history['rewards'].append(epr)
+    history['color_frame'].append(color_frame)
+    history['state_json'].append(state_json)
+    episode_length += 1
 
     # This is a hack to get the starting screen, which throws an error in ALE for amidar
     num_steps = -1
@@ -398,7 +511,11 @@ def multiple_intervention_decrement_score(model, env, rollout_history, max_ep_le
         state_json = tb.state_to_json()
 
         #intervene on score
-        state_json['score'] -= 1
+        # print("Intervening on score now to decrement and forward simulating")
+        if state_json['score'] - decrement_size >= 0:
+            state_json['score'] -= decrement_size
+        else:
+            state_json['score'] = 0
         tb.write_state_json(state_json)
         color_frame = tb.get_rgb_frame()
 
@@ -412,13 +529,17 @@ def multiple_intervention_decrement_score(model, env, rollout_history, max_ep_le
         history['state_json'].append(state_json)
         print('\tstep # {}, reward {:.0f}'.format(episode_length, epr), end='\r')
 
+    #check whether output has same length for different keys
+    for key in history.keys():
+        assert(len(history['ins']) == len(history[key]))
+
     return history
 
 def amidar_modify_score(tb, rollout_history, index, abs_score, env, random_score=False):
-    print("Intervening on score now and forward simulating")
+    # print("Intervening on score now and forward simulating")
     print("old: ", tb.state_to_json()['score'])
 
-    new_state = rollout_history['state_json'][index]
+    new_state = tb.state_to_json()
     if random_score:
         new_state['score'] = random.randint(1,201)
     else:   

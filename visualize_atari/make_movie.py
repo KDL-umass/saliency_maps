@@ -9,12 +9,13 @@ import matplotlib.animation as manimation
 
 import gym, os, sys, time, argparse, pickle
 
-def make_movie(env_name, alg, load_path, num_frames=20, first_frame=0, resolution=75, save_dir=None, \
+def make_movie(env_name, alg, env, model, load_path, num_frames=20, first_frame=0, resolution=75, save_dir=None, \
                 density=5, radius=5, prefix='default', IVmoveball=False, IVsymbricks=False, IVmodifyScore=False, \
                 IVmultModifyScores=False, IVnonChangingScores=False, IVdecrementScore=False):
     print('making movie using model at ', load_path)
     # set up env and model
-    env, model = setUp(env_name, alg, load_path)
+    if env is None or model is None:
+        env, model = setUp(env_name, alg, load_path)
 
     # generate file names and save_dir
     if save_dir is None:
@@ -33,8 +34,8 @@ def make_movie(env_name, alg, load_path, num_frames=20, first_frame=0, resolutio
     pickle.dump(history, filehandler)
 
     # make movie!
-    _make_movie(env_name, model, movie_title, history, num_frames, first_frame, resolution, \
-                save_dir, density, radius, prefix)
+    # _make_movie(env_name, model, movie_title, history, num_frames, first_frame, resolution, \
+    #             save_dir, density, radius, prefix)
 
     if IVmoveball:
         make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
@@ -54,6 +55,8 @@ def make_movie(env_name, alg, load_path, num_frames=20, first_frame=0, resolutio
     elif IVdecrementScore:
         make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
                                 save_dir, density, radius, IVdecrementScore=True)
+
+    return env, model
 
 def make_intervention_movie(env_name, alg, env, model, load_path, history_file, max_ep_len=3e3, num_frames=20, \
                             first_frame=0, resolution=75, save_dir=None, density=5, radius=5, IVmoveball=False, IVsymbricks=False, \
@@ -97,14 +100,14 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
 
     if IVmultModifyScores:
         print('making movie with IVmultModifyScores intervention using model at ', load_path)
-        prefix = "IVmultModifyScores"
+        prefix = "IVmultModifyScoresRand"
         if save_dir is None:
             save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
 
         # get interventional history
         default_history_file = open(save_dir + history_file, 'rb') 
         default_history = pickle.load(default_history_file)
-        history = multiple_intervention_modify_score(model, env, default_history, max_ep_len=max_ep_len, random_score=False)
+        history = multiple_intervention_modify_score(model, env, default_history, max_ep_len=max_ep_len, random_score=True)
 
     if IVnonChangingScores:
         print('making movie with IVnonChangingScores intervention using model at ', load_path)
@@ -129,18 +132,21 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
         history = multiple_intervention_decrement_score(model, env, default_history, max_ep_len=200)
 
     # generate file names
-    movie_title = "{}-{}-{}-{}.mp4".format(prefix, num_frames, env_name.lower(), history_file.split(".pkl")[0][-1:])
-    history_title = "{}-{}-{}-{}.pkl".format(prefix, num_frames, env_name.lower(), history_file.split(".pkl")[0][-1:])
+    movie_title = "{}-{}-{}-{}.mp4".format(prefix, num_frames, env_name.lower(), history_file.split(".pkl")[0].split("-")[-1])
+    history_title = "{}-{}-{}-{}.pkl".format(prefix, num_frames, env_name.lower(), history_file.split(".pkl")[0].split("-")[-1])
+    print(history_title)
 
     # save history
     filehandler = open(save_dir + history_title, 'wb') 
     pickle.dump(history, filehandler)
 
     # make movie!
-    _make_movie(env_name, model, movie_title, history, num_frames, first_frame, resolution, \
-            save_dir, density, radius, prefix)
+    # _make_movie(env_name, model, movie_title, history, num_frames, first_frame, resolution, \
+    #         save_dir, density, radius, prefix)
 
-def _make_movie(env_name, model, movie_title, history, num_frames=20, first_frame=0, resolution=75, \
+    return env, model
+
+def _make_movie(env_name, model, movie_title, history, num_frames=20, first_frame=1, resolution=75, \
                 save_dir='./saliency_maps/movies/', density=5, radius=5, prefix='default'):
     # set up dir variables and environment
     load_dir = env_name.lower()
@@ -179,7 +185,7 @@ def update_filenames(directory, movie_file, history_file):
             count += 1
             new_movie_file = movie_file.split(".mp4")[0][:-1] + str(count) + ".mp4"
             new_history_file = history_file.split(".pkl")[0][:-1] + str(count) + ".pkl"
-            if os.path.isfile(directory + new_movie_file):
+            if os.path.isfile(directory + new_history_file):
                 continue
             else:
                 movie_file = new_movie_file
@@ -214,6 +220,7 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--num_frames', default=20, type=int, help='number of frames in movie')
     parser.add_argument('-i', '--first_frame', default=0, type=int, help='index of first frame')
     parser.add_argument('-dpi', '--resolution', default=75, type=int, help='resolution (dpi)')
+    parser.add_argument('-ns', '--num_samples', default=1, type=int, help='number of samples to run for')
     parser.add_argument('-s', '--save_dir', default=None, type=str, help='dir to save agent logs and checkpoints')
     parser.add_argument('-p', '--prefix', default='default', type=str, help='prefix to help make video name unique')
     parser.add_argument('-hp', '--history_file', default=None, type=str, help='location of history to do intervention')
@@ -225,12 +232,14 @@ if __name__ == '__main__':
     parser.add_argument('-imds', '--IVdecrementScore', default=False, type=bool, help='intervention decrement scores at each timestep in amidar')
     args = parser.parse_args()
 
-    if args.history_file is None:
-        make_movie(args.env_name, args.alg, args.load_path, args.num_frames, args.first_frame, args.resolution,
-            args.save_dir, args.density, args.radius, args.prefix, args.IVmoveball, args.IVsymbricks, 
-            args.IVmodifyScore, args.IVmultModifyScores, args.IVnonChangingScores, args.IVdecrementScore)
-    else:
-        make_intervention_movie(args.env_name, args.alg, None, None, args.load_path, args.history_file, num_frames=args.num_frames, 
-            first_frame=args.first_frame, resolution=args.resolution, save_dir=args.save_dir, density=args.density, 
-            radius=args.radius, IVmoveball=args.IVmoveball, IVsymbricks=args.IVsymbricks, IVmodifyScore=args.IVmodifyScore, 
-            IVmultModifyScores=args.IVmultModifyScores, IVnonChangingScores=args.IVnonChangingScores, IVdecrementScore=args.IVdecrementScore)
+    env, model = None, None
+    for i in range(args.num_samples):
+        if args.history_file is None:
+            env, model = make_movie(args.env_name, args.alg, env, model, args.load_path, args.num_frames, args.first_frame, args.resolution,
+                args.save_dir, args.density, args.radius, args.prefix, args.IVmoveball, args.IVsymbricks, 
+                args.IVmodifyScore, args.IVmultModifyScores, args.IVnonChangingScores, args.IVdecrementScore)
+        else:
+            env, model = make_intervention_movie(args.env_name, args.alg, env, model, args.load_path, args.history_file, num_frames=args.num_frames, 
+                first_frame=args.first_frame, resolution=args.resolution, save_dir=args.save_dir, density=args.density, 
+                radius=args.radius, IVmoveball=args.IVmoveball, IVsymbricks=args.IVsymbricks, IVmodifyScore=args.IVmodifyScore, 
+                IVmultModifyScores=args.IVmultModifyScores, IVnonChangingScores=args.IVnonChangingScores, IVdecrementScore=args.IVdecrementScore)
