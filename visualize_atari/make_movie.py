@@ -100,14 +100,14 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
 
     if IVmultModifyScores:
         print('making movie with IVmultModifyScores intervention using model at ', load_path)
-        prefix = "IVmultModifyScoresRand"
+        prefix = "IVmultModifyScores"
         if save_dir is None:
             save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
 
         # get interventional history
         default_history_file = open(save_dir + history_file, 'rb') 
         default_history = pickle.load(default_history_file)
-        history = multiple_intervention_modify_score(model, env, default_history, max_ep_len=max_ep_len, random_score=True)
+        history = multiple_intervention_modify_score(model, env, default_history, max_ep_len=max_ep_len, random_score=False)
 
     if IVnonChangingScores:
         print('making movie with IVnonChangingScores intervention using model at ', load_path)

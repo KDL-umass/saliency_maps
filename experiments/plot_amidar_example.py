@@ -21,8 +21,8 @@ def plot(rewards, score_saliency):
     plt.ylabel("Reward")
     plt.title("Reward Over Time")
     plt.legend()
-    # plt.savefig(SAVE_DIR + 'amidar_rewards_ex.png')
-    plt.show()
+    plt.savefig(SAVE_DIR + 'amidar_rewards_ex_50s.png')
+    # plt.show()
 
     plt.figure()
     for i, saliency in enumerate(score_saliency):
@@ -31,8 +31,8 @@ def plot(rewards, score_saliency):
     plt.ylabel("Saliency on Score")
     plt.title("Saliency on Score Over Time")
     plt.legend()
-    # plt.savefig(SAVE_DIR + 'amidar_scoreSaliency_ex.png')
-    plt.show()
+    plt.savefig(SAVE_DIR + 'amidar_scoreSaliency_ex_50s.png')
+    # plt.show()
 
 def get_rewards(history):
     grouped_rewards = []
@@ -55,8 +55,11 @@ def get_score_saliency(history):
         sample_saliency = []
         for history in history_type:
             score_saliency = []
-            for i in range(10):
+            for i in range(150):
                 #get raw saliency score
+                if len(history['color_frame']) <= i:
+                    score_saliency += [0]
+                    continue
                 frame = history['color_frame'][i]
                 actor_saliency = score_frame(model, history, i, r=2, d=5, interp_func=occlude, mode='actor')
                 S = np.zeros((110, 84))
@@ -76,8 +79,9 @@ def get_score_saliency(history):
                 for pixels in concept_pixels:
                     score_pixels.append(S[pixels[1]][pixels[0]])
                 score_saliency += [np.mean(score_pixels)]
+            print("len score saliency: ", len(score_saliency))
             sample_saliency += [score_saliency]
-        print(len(sample_saliency))
+        print("len sample saliency: ", len(sample_saliency))
         #save column wise mean score of all samples
         grouped_score_saliency += [np.mean(sample_saliency, axis=0)]
         print(grouped_score_saliency)
@@ -99,7 +103,7 @@ if __name__ == '__main__':
     histories = []
     for path in history_paths:
         paths = []
-        for i in range(5,7):
+        for i in range(5,56):
             path_ = path.format(i)
             history_path = load_dir + path_
             with open(history_path, "rb") as output_file:
@@ -109,16 +113,17 @@ if __name__ == '__main__':
     print(len(histories), len(histories[1]))
 
     #get saliency scores
+    print("now getting saliency scores")
     score_saliency = get_score_saliency(histories)
-    # filehandler = open(SAVE_DIR + 'score_saliencies_50s.pkl', 'wb') 
-    # pickle.dump(score_saliency, filehandler)
-    # print(len(grouped_score_saliency), len(grouped_score_saliency[0]))
-    # with open(SAVE_DIR + 'score_saliencies_50s.pkl', "rb") as output_file:
-    #     score_saliency = pickle.load(output_file)
+    filehandler = open(SAVE_DIR + 'score_saliencies_50s.pkl', 'wb') 
+    pickle.dump(score_saliency, filehandler)
+    with open(SAVE_DIR + 'score_saliencies_50s.pkl', "rb") as output_file:
+        score_saliency = pickle.load(output_file)
 
     #get rewards
+    print("now preprocessing rewards")
     rewards = get_rewards(histories)
-    # filehandler = open(SAVE_DIR + 'rewards_50s.pkl', 'wb') 
-    # pickle.dump(rewards, filehandler)
+    filehandler = open(SAVE_DIR + 'rewards_50s.pkl', 'wb') 
+    pickle.dump(rewards, filehandler)
 
     plot(rewards, score_saliency)
