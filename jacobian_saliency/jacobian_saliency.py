@@ -18,6 +18,8 @@ from vis.visualization import visualize_saliency
 from saliency_maps.visualize_atari.saliency import get_env_meta, score_frame, saliency_on_atari_frame, occlude
 from saliency_maps.visualize_atari.make_movie import setUp
 
+from tensorflow.python.ops.parallel_for.gradients import jacobian
+
 X = None
 # TODO: implement jacobian saliency
 '''
@@ -58,6 +60,8 @@ def js(model, inp, output):
     global X
     print("obs before processing: ", inp.shape)
     inp = adjust_shape(X, inp)
+    inp_ = tf.cast(inp, tf.float32) / 255.
+    print("obs after processing: ", inp_.shape)
 
     # for f in [0,1,2,3]: #because atari passes 4 frames per round
     #     print(f)
@@ -65,31 +69,29 @@ def js(model, inp, output):
     #     plt.imshow(obs[0,:,:,f])
     #     plt.savefig("figure_{}".format(f))
 
-
-    inp_ = tf.cast(inp, tf.float32) / 255.
-    print("obs after processing: ", inp_.shape)
     # max_outp = tf.constant(max(output))
 
-    max_outp = tf.reduce_max(output)
+    # max_outp = tf.reduce_max(output)
 
     # max_outp = tf.convert_to_tensor(output.reshape(1,-1))
 
     # max_outp = tf.reduce_max(output, 1)
 
-    # output = output.reshape(1,-1)
-    # u = tf.random_uniform(tf.shape(output))
-    # x = tf.argmax(output - tf.log(-tf.log(u)), axis=-1)
-    # max_outp = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=output, labels=x))
+    output = output.reshape(1,-1)
+    u = tf.random_uniform(tf.shape(output))
+    x = tf.argmax(output - tf.log(-tf.log(u)), axis=-1)
+    max_outp = tf.reduce_max(tf.nn.softmax_cross_entropy_with_logits_v2(logits=output, labels=x))
 
     # x = tf.placeholder(tf.float32, shape=inp_.shape)
 
     print(max_outp, inp_)
-    saliency_op = tf.gradients(max_outp, inp_)[:][0] #try "stop_gradients=inp_" as parameter
+    saliency_op = tf.gradients(max_outp, inp_) #try "stop_gradients=inp_" as parameter
     print(saliency_op)
-    if saliency_op is None: saliency_op = tf.convert_to_tensor(0)
-    gradients = model.step_model._evaluate([saliency_op], inp)
-    print(gradients)
-    return gradients
+    # if saliency_op is None: saliency_op = tf.convert_to_tensor(0)
+    # gradients = model.step_model._evaluate([saliency_op], inp)
+    # print(gradients)
+    # return gradients
+    return [0]
 
 def make_movie(alg, env_name, num_frames, prefix, load_history_path, load_model_path, resolution=75, first_frame=1):
     global X 
