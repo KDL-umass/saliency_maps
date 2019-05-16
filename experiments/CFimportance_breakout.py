@@ -35,18 +35,40 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
     concepts = get_env_concepts()
 
     #run through history
-    episode_importance = []
+    episode_actionImp = []
+    episode_valueImp = []
     for i in range(30, len(history['ins'])):
-        concept_imp = {}
-        tb.write_state_json(history['state_json'][i])
+        concept_actionImp = {}
+        concept_valueImp = {}
+        tb.write_state_json(history['state_json'][i-1])
 
-        #go through all objects
-        frame = history['color_frame'][i]
+        #get raw saliency score
+        frame = history['color_frame'][i-1]
+        actor_saliency = score_frame(model, history, i-1, radius, density, interp_func=occlude, mode='actor')
+        S_action = np.zeros((110, 84))
+        S_action[18:102, :] = actor_saliency
+        S_action = imresize(actor_saliency, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
+
+        critic_saliency = score_frame(model, history, i-1, radius, density, interp_func=occlude, mode='critic')
+        S_value = np.zeros((110, 84))
+        S_value[18:102, :] = critic_saliency
+        S_value = imresize(critic_saliency, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
+
+        #get frame with saliency
+        frame = saliency_on_atari_frame(actor_saliency, frame, fudge_factor=300, channel=2) #blue
+        frame = saliency_on_atari_frame(critic_saliency, frame, fudge_factor=600, channel=0) #red
+        plt.figure()
+        plt.imshow(frame)
+        plt.savefig(save_dir + history_name + '/num_samples_{}/frame{}.png'.format(num_samples, i))
+
+        #go through all objects and get object saliency and CF importance
+        frame = history['color_frame'][i-1]
         for concept in concepts:
-            concept_imp[concept] = {}
+            concept_actionImp[concept] = {}
+            concept_valueImp[concept] = {}
 
             #get concept location pixels
-            concept_pixels = get_concept_pixels(concept, history['state_json'][i], [frame.shape[1],frame.shape[0]])
+            concept_pixels = get_concept_pixels(concept, history['state_json'][i-1], [frame.shape[1],frame.shape[0]])
             
             #change pixels to white to see mapping in the real frame
             # for pixel in concept_pixels:
@@ -56,35 +78,32 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
             # plt.imshow(frame)
             # plt.show()
 
-            #get raw saliency score
-            frame = history['color_frame'][i]
-            actor_saliency = score_frame(model, history, i, radius, density, interp_func=occlude, mode='actor')
-            S = np.zeros((110, 84))
-            S[18:102, :] = actor_saliency
-            S = imresize(actor_saliency, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
-            score_pixels = []
+            score_pixels_actions = []
+            score_pixels_values = []
             for pixels in concept_pixels:
-                score_pixels.append(S[pixels[1]][pixels[0]])
-            concept_imp[concept]["SM_imp"] = np.mean(score_pixels)
-
-            #get frame with saliency
-            frame = saliency_on_atari_frame(actor_saliency, frame, fudge_factor=300, channel=2) #blue
-            plt.figure()
-            plt.imshow(frame)
-            plt.savefig(save_dir + history_name + '/num_samples_{}/frame{}.png'.format(num_samples, i))
+                score_pixels_actions.append(S_action[pixels[1]][pixels[0]])
+                score_pixels_values.append(S_value[pixels[1]][pixels[0]])
+            concept_actionImp[concept]["SM_imp"] = np.mean(score_pixels_actions)
+            concept_valueImp[concept]["SM_imp"] = np.mean(score_pixels_values)
 
             #apply interventions to concept
-            CF_imp_concept, CF_IV_intensity = apply_interventions(concept, history['a_logits'][i], tb, history['state_json'][i], \
-                                                env, model, concept_pixels, num_samples=num_samples)
-            concept_imp[concept]["CF_imp"] = CF_imp_concept
-            concept_imp[concept]["IV_intensity"] = CF_IV_intensity
+            CF_imp_action, CF_imp_value, CF_IV_intensity = apply_interventions(concept, history['a_logits'][i], history['values'][i], tb, \
+                                                history['state_json'][i-1], env, model, concept_pixels, num_samples=num_samples)
+            concept_actionImp[concept]["CF_imp"] = CF_imp_action
+            concept_valueImp[concept]["CF_imp"] = CF_imp_value
+            concept_actionImp[concept]["IV_intensity"] = CF_IV_intensity
+            concept_valueImp[concept]["IV_intensity"] = CF_IV_intensity
 
-        episode_importance += [concept_imp]
+        episode_actionImp += [concept_actionImp]
+        episode_valueImp += [concept_valueImp]
 
     #save data
-    print(episode_importance)
-    filehandler = open(save_dir + history_name + '/num_samples_{}/episode_importance.pkl'.format(num_samples), 'wb') 
-    pickle.dump(episode_importance, filehandler)
+    print(episode_actionImp)
+    print(episode_valueImp)
+    filehandler1 = open(save_dir + history_name + '/num_samples_{}/episode_actionImp.pkl'.format(num_samples), 'wb') 
+    pickle.dump(episode_actionImp, filehandler1)
+    filehandler2 = open(save_dir + history_name + '/num_samples_{}/episode_valueImp.pkl'.format(num_samples), 'wb') 
+    pickle.dump(episode_valueImp, filehandler2)
 
 def get_env_concepts():
     return CONCEPTS["Breakout"]
@@ -205,10 +224,11 @@ def get_concept_pixels(concept, state_json, size):
 
     return pixels
 
-def apply_interventions(concept, a_logits, tb, state_json, env, model, pixels, num_samples):
+def apply_interventions(concept, a_logits, values, tb, state_json, env, model, pixels, num_samples):
     global INTERVENTIONS
 
-    CF_imp_concept = []
+    CF_imp_action = []
+    CF_imp_value = []
     CF_IV_intensity = []
     if "bricks" in concept:
         concept = "bricks"
@@ -216,24 +236,31 @@ def apply_interventions(concept, a_logits, tb, state_json, env, model, pixels, n
 
     for i in range(num_samples):
         IV_a_logits = []
+        IV_values = []
         CF_intensity = []
-        CF_imp = []
+        CF_actions = []
+        CF_values = []
         #get a_logits from interventions
         for IV in interventions:
-            logits, intensity = IV(tb, state_json, env, model, pixels)
+            logits, value, intensity = IV(tb, state_json, env, model, pixels)
             IV_a_logits += [logits]
+            IV_values += [value]
             CF_intensity += [intensity]
 
-        #get euclidean distance of a_logits before and after intervention
-        for IV_logits in IV_a_logits:
-            euc_dist = np.linalg.norm(IV_logits - a_logits)
-            CF_imp += [euc_dist]
-        print("CF_imp: ", CF_imp)
+        #get euclidean distance of a_logits and value before and after intervention
+        for j,IV_logits in enumerate(IV_a_logits):
+            euc_dist_action = np.linalg.norm(IV_logits - a_logits)
+            euc_dist_value = np.linalg.norm(IV_values[j] - values)
+            CF_actions += [euc_dist_action]
+            CF_values += [euc_dist_value]
+        print("CF_actions: ", CF_actions)
+        print("CF_values: ", CF_values)
         print("CF_intensity: ", CF_intensity)
-        CF_imp_concept += [CF_imp]
+        CF_imp_action += [CF_actions]
+        CF_imp_value += [CF_values]
         CF_IV_intensity += [CF_intensity]
 
-    return CF_imp_concept, CF_IV_intensity
+    return CF_imp_action, CF_imp_value, CF_IV_intensity
 
 def intervention_move_ball(tb, state_json, env, model, pixels):
     distances = range(5,16)
@@ -258,7 +285,7 @@ def intervention_move_ball(tb, state_json, env, model, pixels):
     actions, value, _, _, a_logits = model.step(obs)
     tb.write_state_json(state_json) 
 
-    return list(a_logits), move_distance
+    return list(a_logits), value, move_distance
 
 def intervention_ball_speed(tb, state_json, env, model, pixels):
     delta = range(1,4)
@@ -281,7 +308,7 @@ def intervention_ball_speed(tb, state_json, env, model, pixels):
     actions, value, _, _, a_logits = model.step(obs)
     tb.write_state_json(state_json) 
 
-    return list(a_logits), delta_velocity
+    return list(a_logits), value, delta_velocity
 
 def intervention_move_paddle(tb, state_json, env, model, pixels):
     distances = range(5,16)
@@ -307,7 +334,7 @@ def intervention_move_paddle(tb, state_json, env, model, pixels):
     actions, value, _, _, a_logits = model.step(obs)
     tb.write_state_json(state_json) 
 
-    return list(a_logits), move_distance
+    return list(a_logits), value, move_distance
 
 def intervention_flip_bricks(tb, state_json, env, model, pixels):
     bricks_in_pixels, brick_indices = get_pixel_bricks(tb, pixels)
@@ -330,7 +357,7 @@ def intervention_flip_bricks(tb, state_json, env, model, pixels):
     actions, value, _, _, a_logits = model.step(obs)
     tb.write_state_json(state_json) 
 
-    return list(a_logits), num_dead_bricks
+    return list(a_logits), value, num_dead_bricks
 
 def intervention_remove_bricks(tb, state_json, env, model, pixels):
     #select 5 random bricks from 18 bricks in sub space
@@ -354,7 +381,7 @@ def intervention_remove_bricks(tb, state_json, env, model, pixels):
     actions, value, _, _, a_logits = model.step(obs)
     tb.write_state_json(state_json) 
 
-    return list(a_logits), remove_bricks_depth
+    return list(a_logits), value, remove_bricks_depth
 
 def intervention_remove_rows(tb, state_json, env, model, pixels):
     bricks_in_pixels, brick_indices = get_pixel_bricks(tb, pixels)
@@ -375,7 +402,7 @@ def intervention_remove_rows(tb, state_json, env, model, pixels):
     actions, value, _, _, a_logits = model.step(obs)
     tb.write_state_json(state_json) 
 
-    return list(a_logits), remove_row
+    return list(a_logits), value, remove_row
 
 def intervention_add_channel(tb, state_json, env, model, pixels):
     return None

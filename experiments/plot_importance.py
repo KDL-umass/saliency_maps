@@ -14,7 +14,7 @@ GAME = None
 '''
 Scatter plot of SM vs CF importance per time step in episode.
 '''
-def plot_impCorr_perFrame(episode_importance, num_samples):
+def plot_impCorr_perFrame(episode_importance, num_samples, imp_type="action"):
     global GAME
 
     #plot per time step
@@ -35,12 +35,12 @@ def plot_impCorr_perFrame(episode_importance, num_samples):
             plt.xlabel('Saliency Score')
             plt.title('Saliency Importance VS Counterfactual Importance for Each Object')
             plt.legend()
-        plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-6/num_samples_{}/frame{}_importance.png'.format(num_samples, i+30))
+        plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/frame{}_{}Imp.png'.format(num_samples, i+30, imp_type))
 
 '''
 Scatter plot of SM vs CF importance per intervention.
 '''
-def plot_impCorr_perIV(episode_importance, num_samples):
+def plot_impCorr_perIV(episode_importance, num_samples, imp_type="action"):
     global GAME
     concepts = CONCEPTS[GAME]
 
@@ -66,12 +66,12 @@ def plot_impCorr_perIV(episode_importance, num_samples):
             plt.ylabel('Euclidean Distance of Network Action Logits')
             plt.xlabel('Saliency Score')
             plt.title('SM Importance VS CF Importance for {}'.format(IV))
-            plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-6/num_samples_{}/IVimportance_{}.png'.format(num_samples, IV))
+            plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/IV{}Imp_{}.png'.format(num_samples, imp_type, IV))
 
 '''
 Line plot of importance over time.
 '''
-def plot_imp_overTime(episode_importance, num_samples):
+def plot_imp_overTime(episode_importance, num_samples, imp_type="action"):
     global GAME
     concepts = CONCEPTS[GAME]
 
@@ -98,12 +98,12 @@ def plot_imp_overTime(episode_importance, num_samples):
             plt.xlabel('Time')
             plt.title('Cummulative Importance Over an Episode')
             plt.legend()
-        plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-6/num_samples_{}/importance_{}.png'.format(num_samples, concept))
+        plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/{}Imp_{}.png'.format(num_samples, imp_type, concept))
 
 '''
 Box plot of CF importance per intervention.
 '''
-def plot_CFimp_variability(episode_importance, num_samples):
+def plot_CFimp_variability(episode_importance, num_samples, imp_type="action"):
     global GAME
     concepts = CONCEPTS[GAME]
 
@@ -150,12 +150,12 @@ def plot_CFimp_variability(episode_importance, num_samples):
         #     plt.xlabel('Intervention Type')
         #     plt.title('CF Importance Variability Over Episode')
         #     # plt.legend()
-    plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-6/num_samples_{}/box_plt{}.png'.format(num_samples, concept))
+    plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/box_plt_{}{}.png'.format(num_samples, imp_type, concept))
 
 '''
 Scatter plot for CF importance versus intensity of intervention per intervention.
 '''
-def plot_IVintensity_corr(episode_importance, num_samples):
+def plot_IVintensity_corr(episode_importance, num_samples, imp_type="action"):
     global GAME
     concepts = CONCEPTS[GAME]
 
@@ -186,7 +186,7 @@ def plot_IVintensity_corr(episode_importance, num_samples):
             plt.ylabel('CF Importance')
             plt.xlabel('Intervention Intensity')
             plt.title('Intervention Intensity VS CF Importance for {}'.format(IV))
-            plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-6/num_samples_{}/IV_intensity_correlation_{}.png'.format(num_samples, IV))
+            plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/IV_intensity_correlation_{}.png'.format(num_samples, IV))
 
 def duplicates(lst, item):
     return [i for i, x in enumerate(lst) if x == item]
@@ -200,11 +200,19 @@ if __name__ == '__main__':
 
     GAME = args.game
 
-    with open(args.load_path, 'rb') as f:
-        episode_importance = pickle.load(f)
+    with open(args.load_path + "/episode_actionImp.pkl", 'rb') as f:
+        episode_actionImp = pickle.load(f)
+    with open(args.load_path + "/episode_valueImp.pkl", 'rb') as f:
+        episode_valueImp = pickle.load(f)
 
-    plot_impCorr_perFrame(episode_importance, args.num_samples)
-    plot_impCorr_perIV(episode_importance, args.num_samples)
-    plot_imp_overTime(episode_importance, args.num_samples)
-    plot_CFimp_variability(episode_importance, args.num_samples)
-    plot_IVintensity_corr(episode_importance, args.num_samples)
+    plot_impCorr_perFrame(episode_actionImp, args.num_samples)
+    plot_impCorr_perIV(episode_actionImp, args.num_samples)
+    plot_imp_overTime(episode_actionImp, args.num_samples)
+    plot_CFimp_variability(episode_actionImp, args.num_samples)
+    plot_IVintensity_corr(episode_actionImp, args.num_samples)
+
+    plot_impCorr_perFrame(episode_valueImp, args.num_samples, imp_type="value")
+    plot_impCorr_perIV(episode_valueImp, args.num_samples, imp_type="value")
+    plot_imp_overTime(episode_valueImp, args.num_samples, imp_type="value")
+    plot_CFimp_variability(episode_valueImp, args.num_samples, imp_type="value")
+    plot_IVintensity_corr(episode_valueImp, args.num_samples, imp_type="value")
