@@ -28,7 +28,7 @@ def score_frame(model, history, ix, r, d, interp_func, mode='actor'):
     for i in range(0,84,d):
         for j in range(0,84,d):
             processed_obs = np.copy(orig_obs)
-            for f in [3]: #because atari passes 4 frames per round
+            for f in [0,1,2,3]: #because atari passes 4 frames per round
                 mask = get_mask(center=[i,j], size=[84,84], r=r)
                 processed_obs[0,:,:,f] = interp_func(orig_obs[0,:,:,f], mask) # perturb input I -> I'
             l = run_through_model(model, processed_obs, mode=mode) #with mask

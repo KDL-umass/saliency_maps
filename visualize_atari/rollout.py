@@ -290,7 +290,7 @@ def single_intervention_modify_score(model, env, rollout_history, max_ep_len=3e3
 
         episode_length += 1
 
-    amidar_modify_score(tb, rollout_history, episode_length, abs_score, env)
+    obs = amidar_modify_score(tb, rollout_history, episode_length, abs_score, env)
 
     while not done and episode_length <= max_ep_len:
         episode_length += 1
@@ -370,22 +370,19 @@ def multiple_intervention_modify_score(model, env, rollout_history, max_ep_len=3
 
         episode_length += 1
 
-    amidar_modify_score(tb, rollout_history, episode_length, abs_score, env, random_score)
-
     #forward simulate and intervene at all consequent intervene steps
     while not done and episode_length <= max_ep_len:
         episode_length += 1
+        #intervene
+        if episode_length in intervene_steps:
+            obs = amidar_modify_score(tb, rollout_history, episode_length, abs_score, env, random_score)
+
         actions, value, _, _, a_logits = model.step(obs)
         num_lives = turtle.ale.lives()
         obs, reward, done, info = env.step(actions)
         epr += reward[0]
         color_frame = tb.get_rgb_frame()
         state_json = tb.state_to_json()
-
-        #intervene
-        if episode_length in intervene_steps:
-            print(episode_length)
-            amidar_modify_score(tb, rollout_history, episode_length, abs_score, env, random_score)
 
         #save info
         history['ins'].append(obs)
@@ -550,3 +547,94 @@ def amidar_modify_score(tb, rollout_history, index, abs_score, env, random_score
     #forward simulate 3 steps with no-op action
     for i in range(3):
         obs, _, _, _ = env.step(0)
+
+    return obs
+
+def multiple_intervention_move_enemies(model, env, rollout_history, max_ep_len=3e3, intervene_steps=[20,40,80,100,120,140,160,180,200,220,240]):
+    history = {'ins': [], 'a_logits': [], 'values': [], 'actions': [], 'rewards': [], 'color_frame': [], 'state_json': []}
+    episode_length, epr, done = 0, 0, False
+
+    #pick random non-changing score
+    move_step = random.randint(1,11)
+
+    #logger.log("Running trained model")
+    print("Running trained model")
+    obs = env.reset()
+    turtle = atari_wrappers.get_turtle(env)
+    tb = turtle.toybox
+
+    #start new game and set start state to the same state as original game
+    tb.new_game()
+    tb.write_state_json(rollout_history['state_json'][0])
+    
+    #add start state to history
+    state_json = tb.state_to_json()
+    color_frame = tb.get_rgb_frame()
+    history['ins'].append(obs)
+    history['a_logits'].append(None)
+    history['values'].append(None)
+    history['actions'].append(None)
+    history['rewards'].append(epr)
+    history['color_frame'].append(color_frame)
+    history['state_json'].append(state_json)
+    episode_length += 1
+
+    # This is a hack to get the starting screen, which throws an error in ALE for amidar
+    num_steps = -1
+
+    #run episode as original until first intervene step
+    while episode_length < intervene_steps[0]:
+        obs, reward, done, info = env.step(rollout_history['actions'][episode_length])
+        epr += reward[0]
+        color_frame = tb.get_rgb_frame()
+        state_json = tb.state_to_json()
+
+        #save info
+        history['ins'].append(obs)
+        history['a_logits'].append(rollout_history['a_logits'][episode_length])
+        history['values'].append(rollout_history['values'][episode_length])
+        history['actions'].append(rollout_history['actions'][episode_length])
+        history['rewards'].append(epr)
+        history['color_frame'].append(color_frame)
+        history['state_json'].append(state_json)
+
+        episode_length += 1
+
+    #forward simulate and intervene at all consequent intervene steps
+    while not done and episode_length <= max_ep_len:
+        episode_length += 1
+        #intervene
+        if episode_length in intervene_steps:
+            print("Intervening on enemy locations now -- moving {} steps".format(move_step))
+            for i,enemy in enumerate(state_json['enemies']):
+                print("old next step: ", state_json['enemies'][i]['ai']['EnemyLookupAI']['next'])
+                next_step = enemy['ai']['EnemyLookupAI']['next'] + move_step
+                state_json['enemies'][i]['ai']['EnemyLookupAI']['next'] = next_step
+                print("new next step: ", state_json['enemies'][i]['ai']['EnemyLookupAI']['next'])
+            tb.write_state_json(state_json)
+            #forward simulate 3 steps with no-op action
+            for i in range(3):
+                obs, _, _, _ = env.step(0)
+
+        actions, value, _, _, a_logits = model.step(obs)
+        num_lives = turtle.ale.lives()
+        obs, reward, done, info = env.step(actions)
+        epr += reward[0]
+        color_frame = tb.get_rgb_frame()
+        state_json = tb.state_to_json()
+
+        #save info
+        history['ins'].append(obs)
+        history['a_logits'].append(a_logits)
+        history['values'].append(value)
+        history['actions'].append(actions[0])
+        history['rewards'].append(epr)
+        history['color_frame'].append(color_frame)
+        history['state_json'].append(state_json)
+        print('\tstep # {}, reward {:.0f}'.format(episode_length, epr), end='\r')
+
+    #check whether output has same length for different keys
+    for key in history.keys():
+        assert(len(history['ins']) == len(history[key]))
+
+    return history

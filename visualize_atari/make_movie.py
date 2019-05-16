@@ -11,7 +11,7 @@ import gym, os, sys, time, argparse, pickle
 
 def make_movie(env_name, alg, env, model, load_path, num_frames=20, first_frame=0, resolution=75, save_dir=None, \
                 density=5, radius=5, prefix='default', IVmoveball=False, IVsymbricks=False, IVmodifyScore=False, \
-                IVmultModifyScores=False, IVnonChangingScores=False, IVdecrementScore=False):
+                IVmultModifyScores=False, IVnonChangingScores=False, IVdecrementScore=False, IVmoveEnemies=False):
     print('making movie using model at ', load_path)
     # set up env and model
     if env is None or model is None:
@@ -34,8 +34,8 @@ def make_movie(env_name, alg, env, model, load_path, num_frames=20, first_frame=
     pickle.dump(history, filehandler)
 
     # make movie!
-    # _make_movie(env_name, model, movie_title, history, num_frames, first_frame, resolution, \
-    #             save_dir, density, radius, prefix)
+    _make_movie(env_name, model, movie_title, history, num_frames, first_frame, resolution, \
+                save_dir, density, radius, prefix)
 
     if IVmoveball:
         make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
@@ -55,12 +55,16 @@ def make_movie(env_name, alg, env, model, load_path, num_frames=20, first_frame=
     elif IVdecrementScore:
         make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
                                 save_dir, density, radius, IVdecrementScore=True)
+    elif IVmoveEnemies:
+        make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
+                                save_dir, density, radius, IVmoveEnemies=True)
 
     return env, model
 
 def make_intervention_movie(env_name, alg, env, model, load_path, history_file, max_ep_len=3e3, num_frames=20, \
                             first_frame=0, resolution=75, save_dir=None, density=5, radius=5, IVmoveball=False, IVsymbricks=False, \
-                            IVmodifyScore=False, IVmultModifyScores=False, IVnonChangingScores=False, IVdecrementScore=False):
+                            IVmodifyScore=False, IVmultModifyScores=False, IVnonChangingScores=False, IVdecrementScore=False, \
+                            IVmoveEnemies=False):
 
     if env is None or model is None:
         env, model = setUp(env_name, alg, load_path)
@@ -100,14 +104,14 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
 
     if IVmultModifyScores:
         print('making movie with IVmultModifyScores intervention using model at ', load_path)
-        prefix = "IVmultModifyScores"
+        prefix = "IVmultModifyScoresRand"
         if save_dir is None:
             save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
 
         # get interventional history
         default_history_file = open(save_dir + history_file, 'rb') 
         default_history = pickle.load(default_history_file)
-        history = multiple_intervention_modify_score(model, env, default_history, max_ep_len=max_ep_len, random_score=False)
+        history = multiple_intervention_modify_score(model, env, default_history, max_ep_len=max_ep_len, random_score=True)
 
     if IVnonChangingScores:
         print('making movie with IVnonChangingScores intervention using model at ', load_path)
@@ -131,6 +135,17 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
         default_history = pickle.load(default_history_file)
         history = multiple_intervention_decrement_score(model, env, default_history, max_ep_len=200)
 
+    if IVmoveEnemies:
+        print('making movie with IVmoveEnemies intervention using model at ', load_path)
+        prefix = "IVmoveEnemies"
+        if save_dir is None:
+            save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
+
+        # get interventional history
+        default_history_file = open(save_dir + history_file, 'rb') 
+        default_history = pickle.load(default_history_file)
+        history = multiple_intervention_move_enemies(model, env, default_history)
+
     # generate file names
     movie_title = "{}-{}-{}-{}.mp4".format(prefix, num_frames, env_name.lower(), history_file.split(".pkl")[0].split("-")[-1])
     history_title = "{}-{}-{}-{}.pkl".format(prefix, num_frames, env_name.lower(), history_file.split(".pkl")[0].split("-")[-1])
@@ -141,8 +156,8 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
     pickle.dump(history, filehandler)
 
     # make movie!
-    # _make_movie(env_name, model, movie_title, history, num_frames, first_frame, resolution, \
-    #         save_dir, density, radius, prefix)
+    _make_movie(env_name, model, movie_title, history, num_frames, first_frame, resolution, \
+            save_dir, density, radius, prefix)
 
     return env, model
 
@@ -230,6 +245,7 @@ if __name__ == '__main__':
     parser.add_argument('-imms', '--IVmultModifyScores', default=False, type=bool, help='intervention change scores mid-game in amidar')
     parser.add_argument('-incs', '--IVnonChangingScores', default=False, type=bool, help='intervention non changing scores in amidar')
     parser.add_argument('-imds', '--IVdecrementScore', default=False, type=bool, help='intervention decrement scores at each timestep in amidar')
+    parser.add_argument('-ime', '--IVmoveEnemies', default=False, type=bool, help='intervention move enemy on same protocol at multiple steps in amidar')
     args = parser.parse_args()
 
     env, model = None, None
@@ -242,4 +258,5 @@ if __name__ == '__main__':
             env, model = make_intervention_movie(args.env_name, args.alg, env, model, args.load_path, args.history_file, num_frames=args.num_frames, 
                 first_frame=args.first_frame, resolution=args.resolution, save_dir=args.save_dir, density=args.density, 
                 radius=args.radius, IVmoveball=args.IVmoveball, IVsymbricks=args.IVsymbricks, IVmodifyScore=args.IVmodifyScore, 
-                IVmultModifyScores=args.IVmultModifyScores, IVnonChangingScores=args.IVnonChangingScores, IVdecrementScore=args.IVdecrementScore)
+                IVmultModifyScores=args.IVmultModifyScores, IVnonChangingScores=args.IVnonChangingScores, IVdecrementScore=args.IVdecrementScore,
+                IVmoveEnemies=args.IVmoveEnemies)
