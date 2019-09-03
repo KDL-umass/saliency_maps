@@ -214,13 +214,38 @@ def get_concept_pixels(concept, state_json, size):
         for x in range(x_partition):
             for y in range(y_partition):
                 pixels += [(upper_left_corner[0] + 2*x_partition + x, upper_left_corner[1] + y_partition + y)]
+    elif concept == "bricks":
+        bricks = state_json["bricks"]
+        for brick in bricks:
+            brick_size = (int(brick['size']['x']), int(brick['size']['y']))
+            brick_pos = (int(brick['position']['x']), int(brick['position']['y']))
+            pix_brick = []
+            for x in range(brick_size[0]):
+                for y in range(brick_size[1]):
+                    pix_brick.append((brick_pos[0]+x, brick_pos[1]+y))
+            pixels.append(pix_brick)
+    elif concept == "lives":
+        lives_size = (24,12)
+        lives_pos = (148,1)
+        for x in range(lives_size[0]):
+            for y in range(lives_size[1]):
+                print((lives_pos[0]+x, lives_pos[1]+y))
+                pixels += [(lives_pos[0]+x, lives_pos[1]+y)]
+    elif concept == "score":
+        score_size = (80,12)
+        score_pos = (50,1)
+        for x in range(score_size[0]):
+            for y in range(score_size[1]):
+                print((score_pos[0]+x, score_pos[1]+y))
+                pixels += [(score_pos[0]+x, score_pos[1]+y)]
 
     #ensure that pixels are not out of scope
-    for pixel in pixels:
-        if (pixel[0] >= size[0] or pixel[0] <= 0) or (pixel[1] >= size[1] or pixel[1] <= 0):
-            print(pixel[0], pixel[1])
-            print(size[0], pixel[1])
-            pixels.remove(pixel)
+    if concept != "bricks":
+        for pixel in pixels:
+            if (pixel[0] >= size[0] or pixel[0] <= 0) or (pixel[1] >= size[1] or pixel[1] <= 0):
+                print(pixel[0], pixel[1])
+                print(size[0], pixel[1])
+                pixels.remove(pixel)
 
     return pixels
 
