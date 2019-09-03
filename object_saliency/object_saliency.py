@@ -1,7 +1,9 @@
+from saliency_maps.object_saliency import AMIDAR_OBJECTS, BREAKOUT_OBJECTS, AMIDAR_MOVING_OBJ, BREAKOUT_MOVING_OBJ
 import tensorflow as tf
 import numpy as np
 import pickle
 import time
+import cv2 as cv
 from scipy.misc import imresize
 
 from baselines.common.input import observation_placeholder
@@ -18,56 +20,90 @@ from saliency_maps.experiments import CONCEPTS
 from saliency_maps.experiments.CFimportance_amidar import get_concept_pixels as get_concept_pixels_amidar
 from saliency_maps.experiments.CFimportance_breakout import get_concept_pixels as get_concept_pixels_breakout
 
+def get_objPixels(env_objects, env_name, env, frame, state_json):
+    #using template matching to get objects as in Iyer et al. -- see https://docs.opencv.org/master/d4/dc6/tutorial_py_template_matching.html
+    threshold = 0.8
+    pixels = []
+    source = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+
+    #template matching
+    for obj in env_objects.keys():
+        template = cv.imread(env_objects[obj], 0)
+        w, h = template.shape[::-1]
+
+        res = cv.matchTemplate(source,template,cv.TM_CCOEFF_NORMED)
+        loc = np.where(res >= threshold)
+
+        for pt in zip(*loc[::-1]):
+            pix_obj = []
+            for x in range(w):
+                for y in range(h):
+                    pix_obj.append((pt[0]+x, pt[1]+y))
+            pixels.append(pix_obj)
+            cv.rectangle(frame, pt, (pt[0] + w, pt[1] + h), (0,0,255), 1)
+
+    #manual pixel collection
+    if "Breakout" in env_name:
+        pixels.append(get_concept_pixels_breakout('balls', state_json, [frame.shape[1],frame.shape[0]]))
+        pixels.append(get_concept_pixels_breakout('paddle', state_json, [frame.shape[1],frame.shape[0]]))
+        pixels.append(get_concept_pixels_breakout('score', state_json, [frame.shape[1],frame.shape[0]]))
+        pixels.append(get_concept_pixels_breakout('lives', state_json, [frame.shape[1],frame.shape[0]]))
+        pixels += get_concept_pixels_breakout('bricks', state_json, [frame.shape[1],frame.shape[0]])
+        print(pixels)
+    elif "Amidar" in env_name:
+        turtle = atari_wrappers.get_turtle(env)
+        tb = turtle.toybox
+        tb.write_state_json(state_json)
+        pixels.append(get_concept_pixels_amidar('score', state_json, [frame.shape[1],frame.shape[0]], tb))
+        pixels.append(get_concept_pixels_amidar('lives', state_json, [frame.shape[1],frame.shape[0]], tb))
+
+    return pixels
+
 def run_through_model(model, obs, mode='actor'):
     _, value, _, _, a_logits = model.step(obs)
     # return value if mode == 'critic' else a_logits
     return value
 
-def score_frame(env_name, env, model, history, ix, mode='actor'):
+def score_frame(env_name, env, model, history, ix, obj_pixels, mode='actor'):
     orig_obs = history['ins'][ix]
     q = run_through_model(model, orig_obs, mode=mode) #without masking objects
 
+    #get pixels of objects
+    obj_pixels.pop(0)
     if "Breakout" in env_name:
-        objects = CONCEPTS['Breakout']
+        obj_pixels.append(get_objPixels(BREAKOUT_OBJECTS, env_name, env, history['color_frame'][ix], history['state_json'][ix]))
     elif "Amidar" in env_name:
-        objects = CONCEPTS['Amidar']
+        obj_pixels.append(get_objPixels(AMIDAR_OBJECTS, env_name, env, history['color_frame'][ix], history['state_json'][ix]))
     else:
         print("Undefined env_name: neither Breakout nor Amidar.")
         return None
 
-    scores = np.zeros(len(objects))
-    pixels = []
-
-    for i,o in enumerate(objects):
+    #mask and calculate score
+    len_obj = len(min(obj_pixels, key=len))
+    scores = np.zeros(len_obj)
+    for i,pix in enumerate(range(len_obj)):
         processed_obs = np.copy(orig_obs)
         for f in [0,1,2,3]: #because atari passes 4 frames per round
-            processed_obs[0,:,:,f], pix = mask_object(orig_obs[0,:,:,f], env_name, env, o, history['state_json'][ix], history['color_frame'][ix])
+            if len(obj_pixels[f]) == 0: #TODO: FIX LOGIC
+                continue
+            print('len of obj pixels : ', len(obj_pixels[0]),len(obj_pixels[1]),len(obj_pixels[2]),len(obj_pixels[3]))
+            processed_obs[0,:,:,f]  = mask_object(orig_obs[0,:,:,f], history['color_frame'][ix], obj_pixels[f][i]) #TODO: FIX LOGIC
         print('processed_obs size', processed_obs.shape)
         q_o = run_through_model(model, processed_obs, mode=mode) #with masking object o
         print(q, q_o)
-        pixels.append(pix)
         scores[i] = q - q_o
     print('scores:', scores)
 
-    return scores, pixels
+    return scores, obj_pixels
 
-def mask_object(obs, env_name, env, obj, state_json, frame):
-    #get pixels of obj
-    if "Breakout" in env_name:
-        pixels = get_concept_pixels_breakout(obj, state_json, [frame.shape[1],frame.shape[0]])
-    if "Amidar" in env_name:
-        turtle = atari_wrappers.get_turtle(env)
-        tb = turtle.toybox
-        tb.write_state_json(state_json)
-        pixels = get_concept_pixels_amidar(obj, state_json, [frame.shape[1],frame.shape[0]], tb)
-
+def mask_object(obs, frame, obj_pixels):
     #modify obs (84x84) to be of size frame (PROBLEM: can't mask a 2d image with background color??)
     M = np.zeros((110, 84))
     M[18:102, :] = obs
     M = imresize(obs, size=[frame.shape[0],frame.shape[1]]).astype(np.float32)
 
     #mask each pixel with background color
-    for pixel in pixels:
+    for pixel in obj_pixels:
         M[pixel[1], pixel[0]] = 0
 
     #resize M to be 84x84
@@ -78,14 +114,15 @@ def mask_object(obs, env_name, env, obj, state_json, frame):
     # plt.imshow(processed_obs)
     # plt.show()
 
-    return processed_obs, pixels
+    return processed_obs
 
 def saliency_on_atari_frame(frame, pixels, score):
     S = 128 * np.ones([frame.shape[0],frame.shape[1], 3], dtype=np.uint8) #gray background
 
     for i,s in enumerate(score):
         for pixel in pixels[i]:
-            S[pixel[1], pixel[0]] += int(s*100)
+            S[pixel[1], pixel[0]] = S[pixel[1], pixel[0]] + int(s*100)
+    S = np.clip(S, a_min=0, a_max=255)
 
     plt.imshow(S)
     plt.show()
@@ -106,6 +143,11 @@ def make_movie(alg, env_name, num_frames, prefix, load_history_path, load_model_
     save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
     movie_title = "{}-{}-{}-{}.mp4".format(prefix, num_frames, env_name.lower(), load_history_path.split(".pkl")[0][-1:])
 
+    if 'Breakout' in env_name:
+        obj_pixels = [[], [], [], []]
+    elif 'Amidar' in env_name:
+        obj_pixels = [get_objPixels(AMIDAR_OBJECTS, env_name, env, history['color_frame'][0], history['state_json'][0])] * 4
+
     # make the movie!
     start = time.time()
     FFMpegWriter = manimation.writers['ffmpeg']
@@ -120,10 +162,10 @@ def make_movie(alg, env_name, num_frames, prefix, load_history_path, load_model_
             if ix < total_frames: # prevent loop from trying to process a frame ix greater than rollout length
                 frame = history['color_frame'][ix]
                 # actor_saliency = score_frame(env_name, env, model, history, ix, mode='actor')
-                critic_saliency, pixels = score_frame(env_name, env, model, history, ix, mode='critic')
+                critic_saliency, obj_pixels = score_frame(env_name, env, model, history, ix, obj_pixels, mode='critic')
 
                 # frame = saliency_on_atari_frame((actor_jacobian**2).squeeze(), frame, fudge_factor=1, channel=2)
-                frame = saliency_on_atari_frame(frame, pixels, critic_saliency)
+                frame = saliency_on_atari_frame(frame, obj_pixels[3], critic_saliency)
 
                 # plt.imshow(frame) ; plt.title(env_name.lower(), fontsize=15)
                 # writer.grab_frame() ; f.clear()
@@ -132,6 +174,6 @@ def make_movie(alg, env_name, num_frames, prefix, load_history_path, load_model_
                 # print('\ttime: {} | progress: {:.1f}%'.format(tstr, 100*i/min(num_frames, total_frames)), end='\r')
     print('\nfinished.')
 
-# make_movie("a2c", "BreakoutToyboxNoFrameskip-v4", 25, "object_default", "./saliency_maps/movies/a2c/BreakoutToyboxNoFrameskip-v4/default-150-breakouttoyboxnoframeskip-v4-6.pkl", "./models/BreakoutToyboxNoFrameskip-v4/breakout4e7_a2c.model")
-make_movie("a2c", "AmidarToyboxNoFrameskip-v4", 25, "object_default", "./saliency_maps/movies/a2c/AmidarToyboxNoFrameskip-v4/default-250-amidartoyboxnoframeskip-v4-2.pkl", "./models/AmidarToyboxNoFrameskip-v4/amidar4e7_a2c.model")
+make_movie("a2c", "BreakoutToyboxNoFrameskip-v4", 25, "object_default", "./saliency_maps/movies/a2c/BreakoutToyboxNoFrameskip-v4/default-150-breakouttoyboxnoframeskip-v4-6.pkl", "./models/BreakoutToyboxNoFrameskip-v4/breakout4e7_a2c.model")
+# make_movie("a2c", "AmidarToyboxNoFrameskip-v4", 25, "object_default", "./saliency_maps/movies/a2c/AmidarToyboxNoFrameskip-v4/default-250-amidartoyboxnoframeskip-v4-2.pkl", "./models/AmidarToyboxNoFrameskip-v4/amidar4e7_a2c.model")
 
