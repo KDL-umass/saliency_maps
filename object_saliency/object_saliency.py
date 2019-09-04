@@ -1,8 +1,7 @@
-from saliency_maps.object_saliency import AMIDAR_OBJECTS, BREAKOUT_OBJECTS, AMIDAR_MOVING_OBJ, BREAKOUT_MOVING_OBJ
+from saliency_maps.object_saliency import *
 import tensorflow as tf
 import numpy as np
-import pickle
-import time
+import pickle, argparse, time
 import cv2 as cv
 from scipy.misc import imresize
 
@@ -20,15 +19,16 @@ from saliency_maps.experiments import CONCEPTS
 from saliency_maps.experiments.CFimportance_amidar import get_concept_pixels as get_concept_pixels_amidar
 from saliency_maps.experiments.CFimportance_breakout import get_concept_pixels as get_concept_pixels_breakout
 
-def get_objPixels(env_objects, env_name, env, frame, state_json):
+def get_objPixels(env_objects, object_template, env_name, env, frame, state_json):
     #using template matching to get objects as in Iyer et al. -- see https://docs.opencv.org/master/d4/dc6/tutorial_py_template_matching.html
     threshold = 0.8
     pixels = []
     source = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
     #template matching
-    for obj in env_objects.keys():
-        template = cv.imread(env_objects[obj], 0)
+    for obj in env_objects:
+        print("concept: ", obj)
+        template = cv.imread(object_template[obj], 0)
         w, h = template.shape[::-1]
 
         res = cv.matchTemplate(source,template,cv.TM_CCOEFF_NORMED)
@@ -40,7 +40,7 @@ def get_objPixels(env_objects, env_name, env, frame, state_json):
                 for y in range(h):
                     pix_obj.append((pt[0]+x, pt[1]+y))
             pixels.append(pix_obj)
-            cv.rectangle(frame, pt, (pt[0] + w, pt[1] + h), (0,0,255), 1)
+            # cv.rectangle(frame, pt, (pt[0] + w, pt[1] + h), (0,0,255), 1) #check object detection by adding rectangular frame
 
     #manual pixel collection
     if "Breakout" in env_name:
@@ -49,7 +49,6 @@ def get_objPixels(env_objects, env_name, env, frame, state_json):
         pixels.append(get_concept_pixels_breakout('score', state_json, [frame.shape[1],frame.shape[0]]))
         pixels.append(get_concept_pixels_breakout('lives', state_json, [frame.shape[1],frame.shape[0]]))
         pixels += get_concept_pixels_breakout('bricks', state_json, [frame.shape[1],frame.shape[0]])
-        print(pixels)
     elif "Amidar" in env_name:
         turtle = atari_wrappers.get_turtle(env)
         tb = turtle.toybox
@@ -61,38 +60,36 @@ def get_objPixels(env_objects, env_name, env, frame, state_json):
 
 def run_through_model(model, obs, mode='actor'):
     _, value, _, _, a_logits = model.step(obs)
-    # return value if mode == 'critic' else a_logits
     return value
 
 def score_frame(env_name, env, model, history, ix, obj_pixels, mode='actor'):
     orig_obs = history['ins'][ix]
     q = run_through_model(model, orig_obs, mode=mode) #without masking objects
 
-    #get pixels of objects
+    #get pixels of objects and modify previous 3 frames with moving objects (i.e. first 2 objects in breakout (balls + paddle) and first 6 objects in amidar (i.e. player and enemies))
     obj_pixels.pop(0)
     if "Breakout" in env_name:
-        obj_pixels.append(get_objPixels(BREAKOUT_OBJECTS, env_name, env, history['color_frame'][ix], history['state_json'][ix]))
+        obj_pixels.append(get_objPixels(BREAKOUT_OBJECT_KEYS, BREAKOUT_OBJECT_TEMPLATES, env_name, env, history['color_frame'][ix], history['state_json'][ix]))
+        for f in [0,1,2]:
+            obj_pixels[f] = obj_pixels[f][:2] + obj_pixels[3][2:]
     elif "Amidar" in env_name:
-        obj_pixels.append(get_objPixels(AMIDAR_OBJECTS, env_name, env, history['color_frame'][ix], history['state_json'][ix]))
+        obj_pixels.append(get_objPixels(AMIDAR_OBJECT_KEYS, AMIDAR_OBJECT_TEMPLATES, env_name, env, history['color_frame'][ix], history['state_json'][ix]))
+        for f in [0,1,2]:
+            obj_pixels[f] = obj_pixels[f][:6] + obj_pixels[3][6:]
     else:
         print("Undefined env_name: neither Breakout nor Amidar.")
         return None
 
     #mask and calculate score
-    len_obj = len(min(obj_pixels, key=len))
+    len_obj = len(obj_pixels[3])
     scores = np.zeros(len_obj)
     for i,pix in enumerate(range(len_obj)):
         processed_obs = np.copy(orig_obs)
         for f in [0,1,2,3]: #because atari passes 4 frames per round
-            if len(obj_pixels[f]) == 0: #TODO: FIX LOGIC
-                continue
-            print('len of obj pixels : ', len(obj_pixels[0]),len(obj_pixels[1]),len(obj_pixels[2]),len(obj_pixels[3]))
-            processed_obs[0,:,:,f]  = mask_object(orig_obs[0,:,:,f], history['color_frame'][ix], obj_pixels[f][i]) #TODO: FIX LOGIC
-        print('processed_obs size', processed_obs.shape)
+            processed_obs[0,:,:,f]  = mask_object(orig_obs[0,:,:,f], history['color_frame'][ix], obj_pixels[f][i])
         q_o = run_through_model(model, processed_obs, mode=mode) #with masking object o
-        print(q, q_o)
         scores[i] = q - q_o
-    print('scores:', scores)
+    # print('scores:', scores)
 
     return scores, obj_pixels
 
@@ -124,34 +121,30 @@ def saliency_on_atari_frame(frame, pixels, score):
             S[pixel[1], pixel[0]] = S[pixel[1], pixel[0]] + int(s*100)
     S = np.clip(S, a_min=0, a_max=255)
 
-    plt.imshow(S)
-    plt.show()
+    # plt.imshow(S)
+    # plt.show()
 
     return S
 
-def make_movie(alg, env_name, num_frames, prefix, load_history_path, load_model_path, resolution=75, first_frame=1):
-    global X 
-
+def make_movie(alg, env_name, num_frames, prefix, load_history_path, load_model_path, resolution=75, first_frame=0):
     # set up env and model
     env, model = setUp(env_name, alg, load_model_path)
-    ob_space = env.observation_space
-    X = observation_placeholder(ob_space)
 
     with open(load_history_path, "rb") as input_file:
         history = pickle.load(input_file)
 
-    save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
+    save_dir = "./saliency_maps/movies/{}/{}/object/".format(alg, env_name)
     movie_title = "{}-{}-{}-{}.mp4".format(prefix, num_frames, env_name.lower(), load_history_path.split(".pkl")[0][-1:])
 
     if 'Breakout' in env_name:
-        obj_pixels = [[], [], [], []]
+        obj_pixels = [get_objPixels(BREAKOUT_OBJECT_KEYS, BREAKOUT_OBJECT_TEMPLATES, env_name, env, history['color_frame'][first_frame], history['state_json'][first_frame])] * 4
     elif 'Amidar' in env_name:
-        obj_pixels = [get_objPixels(AMIDAR_OBJECTS, env_name, env, history['color_frame'][0], history['state_json'][0])] * 4
+        obj_pixels = [get_objPixels(AMIDAR_OBJECT_KEYS, AMIDAR_OBJECT_TEMPLATES, env_name, env, history['color_frame'][first_frame], history['state_json'][first_frame])] * 4
 
     # make the movie!
     start = time.time()
     FFMpegWriter = manimation.writers['ffmpeg']
-    metadata = dict(title=movie_title, artist='greydanus', comment='atari-saliency-video')
+    metadata = dict(title=movie_title, artist='aatrey', comment='atari-object-saliency-video')
     writer = FFMpegWriter(fps=8, metadata=metadata)
     
     prog = '' ; total_frames = len(history['ins'])
@@ -161,19 +154,30 @@ def make_movie(alg, env_name, num_frames, prefix, load_history_path, load_model_
             ix = first_frame+i
             if ix < total_frames: # prevent loop from trying to process a frame ix greater than rollout length
                 frame = history['color_frame'][ix]
-                # actor_saliency = score_frame(env_name, env, model, history, ix, mode='actor')
                 critic_saliency, obj_pixels = score_frame(env_name, env, model, history, ix, obj_pixels, mode='critic')
-
-                # frame = saliency_on_atari_frame((actor_jacobian**2).squeeze(), frame, fudge_factor=1, channel=2)
                 frame = saliency_on_atari_frame(frame, obj_pixels[3], critic_saliency)
 
-                # plt.imshow(frame) ; plt.title(env_name.lower(), fontsize=15)
-                # writer.grab_frame() ; f.clear()
+                plt.imshow(frame) ; plt.title(env_name.lower(), fontsize=15)
+                writer.grab_frame() ; f.clear()
                 
-                # tstr = time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start))
-                # print('\ttime: {} | progress: {:.1f}%'.format(tstr, 100*i/min(num_frames, total_frames)), end='\r')
+                tstr = time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start))
+                print('\ttime: {} | progress: {:.1f}%'.format(tstr, 100*i/min(num_frames, total_frames)), end='\r')
     print('\nfinished.')
 
-make_movie("a2c", "BreakoutToyboxNoFrameskip-v4", 25, "object_default", "./saliency_maps/movies/a2c/BreakoutToyboxNoFrameskip-v4/default-150-breakouttoyboxnoframeskip-v4-6.pkl", "./models/BreakoutToyboxNoFrameskip-v4/breakout4e7_a2c.model")
-# make_movie("a2c", "AmidarToyboxNoFrameskip-v4", 25, "object_default", "./saliency_maps/movies/a2c/AmidarToyboxNoFrameskip-v4/default-250-amidartoyboxnoframeskip-v4-2.pkl", "./models/AmidarToyboxNoFrameskip-v4/amidar4e7_a2c.model")
+# make_movie("a2c", "BreakoutToyboxNoFrameskip-v4", 25, "object_default", "./saliency_maps/movies/a2c/BreakoutToyboxNoFrameskip-v4/perturbation/default-150-breakouttoyboxnoframeskip-v4-6.pkl", "./models/BreakoutToyboxNoFrameskip-v4/breakout4e7_a2c.model")
+# make_movie("a2c", "AmidarToyboxNoFrameskip-v4", 25, "object_default", "./saliency_maps/movies/a2c/AmidarToyboxNoFrameskip-v4/perturbation/default-250-amidartoyboxnoframeskip-v4-2.pkl", "./models/AmidarToyboxNoFrameskip-v4/amidar4e7_a2c.model")
 
+# user might also want to access make_movie function from some other script
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=None)
+    parser.add_argument('-e', '--env_name', default='BreakoutToyboxNoFrameskip-v4', type=str, help='name of gym environment')
+    parser.add_argument('-a', '--alg', help='algorithm used for training')
+    parser.add_argument('-l', '--load_path', help='path to load the model from')
+    parser.add_argument('-f', '--num_frames', default=25, type=int, help='number of frames in movie')
+    parser.add_argument('-i', '--first_frame', default=0, type=int, help='index of first frame')
+    parser.add_argument('-dpi', '--resolution', default=75, type=int, help='resolution (dpi)')
+    parser.add_argument('-p', '--prefix', default='object_default', type=str, help='prefix to help make video name unique')
+    parser.add_argument('-hp', '--history_path', default=None, type=str, help='location of history to do intervention')
+    args = parser.parse_args()
+
+    make_movie(args.alg, args.env_name, args.num_frames, args.prefix, args.history_path, args.load_path, args.resolution, args.first_frame)
