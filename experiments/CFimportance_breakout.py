@@ -114,19 +114,11 @@ def get_concept_pixels(concept, state_json, size):
     if concept == "balls":
         ball_pos = (int(state_json[concept][0]['position']['x']), int(state_json[concept][0]['position']['y']))
         ball_radius = int(state_json['ball_radius'])
-        pixels += [ball_pos]
+        ball_top_left = (ball_pos[0]-ball_radius, ball_pos[1]-ball_radius)
 
-        for i in range(1, ball_radius+1):
-            right_pos = (ball_pos[0] + i, ball_pos[1])
-            left_pos = (ball_pos[0]  - i, ball_pos[1])
-            lower_pos = (ball_pos[0], ball_pos[1] + i)
-            upper_pos = (ball_pos[0], ball_pos[1] - i)
-            lower_right_pos = (ball_pos[0] + i, ball_pos[1] + i)
-            lower_left_pos = (ball_pos[0] - i, ball_pos[1] + i)
-            upper_left_pos = (ball_pos[0] - i, ball_pos[1] - i)
-            upper_right_pos = (ball_pos[0] + i, ball_pos[1] - i)
-
-            pixels += [right_pos, left_pos , lower_pos, upper_pos, lower_right_pos, lower_left_pos, upper_left_pos, upper_right_pos]
+        for x in range(ball_radius*2):
+            for y in range(ball_radius*2):
+                pixels += [(ball_top_left[0]+x, ball_top_left[1]+y)]
     elif concept == "paddle":
         paddle_pos = (int(state_json[concept]['position']['x']), int(state_json[concept]['position']['y']))
         paddle_width = int(state_json['paddle_width']) 
@@ -217,34 +209,31 @@ def get_concept_pixels(concept, state_json, size):
     elif concept == "bricks":
         bricks = state_json["bricks"]
         for brick in bricks:
-            brick_size = (int(brick['size']['x']), int(brick['size']['y']))
-            brick_pos = (int(brick['position']['x']), int(brick['position']['y']))
-            pix_brick = []
-            for x in range(brick_size[0]):
-                for y in range(brick_size[1]):
-                    pix_brick.append((brick_pos[0]+x, brick_pos[1]+y))
-            pixels.append(pix_brick)
+            if brick['alive']:
+                brick_size = (int(brick['size']['x']), int(brick['size']['y']))
+                brick_pos = (int(brick['position']['x']), int(brick['position']['y']))
+                pix_brick = []
+                for x in range(brick_size[0]):
+                    for y in range(brick_size[1]):
+                        pix_brick.append((brick_pos[0]+x, brick_pos[1]+y))
+                pixels.append(pix_brick)
     elif concept == "lives":
         lives_size = (24,12)
         lives_pos = (148,1)
         for x in range(lives_size[0]):
             for y in range(lives_size[1]):
-                print((lives_pos[0]+x, lives_pos[1]+y))
                 pixels += [(lives_pos[0]+x, lives_pos[1]+y)]
     elif concept == "score":
         score_size = (80,12)
         score_pos = (50,1)
         for x in range(score_size[0]):
             for y in range(score_size[1]):
-                print((score_pos[0]+x, score_pos[1]+y))
                 pixels += [(score_pos[0]+x, score_pos[1]+y)]
 
     #ensure that pixels are not out of scope
     if concept != "bricks":
         for pixel in pixels:
             if (pixel[0] >= size[0] or pixel[0] <= 0) or (pixel[1] >= size[1] or pixel[1] <= 0):
-                print(pixel[0], pixel[1])
-                print(size[0], pixel[1])
                 pixels.remove(pixel)
 
     return pixels
