@@ -19,7 +19,7 @@ def make_movie(env_name, alg, env, model, load_path, num_frames=20, first_frame=
 
     # generate file names and save_dir
     if save_dir is None:
-        save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
+        save_dir = "./saliency_maps/movies/{}/{}/perturbation/".format(alg, env_name)
     movie_title = "{}-{}-{}-{}.mp4".format(prefix, num_frames, env_name.lower(), 1)
     history_title = "{}-{}-{}-{}.pkl".format(prefix, num_frames, env_name.lower(), 1)
     movie_title, history_title = update_filenames(save_dir, movie_title, history_title)
@@ -73,7 +73,7 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
         print('making movie with IVmoveball intervention using model at ', load_path)
         prefix = "IVmoveball"
         if save_dir is None:
-            save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
+            save_dir = "./saliency_maps/movies/{}/{}/perturbation/".format(alg, env_name)
 
         # get interventional history
         default_history_file = open(save_dir + history_file, 'rb') 
@@ -84,7 +84,7 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
         print('making movie with IVsymbricks intervention using model at ', load_path)
         prefix = "IVsymbricks"
         if save_dir is None:
-            save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
+            save_dir = "./saliency_maps/movies/{}/{}/perturbation/".format(alg, env_name)
 
         # get interventional history
         default_history_file = open(save_dir + history_file, 'rb') 
@@ -95,7 +95,7 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
         print('making movie with IVmodifyScore intervention using model at ', load_path)
         prefix = "IVmodifyScore"
         if save_dir is None:
-            save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
+            save_dir = "./saliency_maps/movies/{}/{}/perturbation/".format(alg, env_name)
 
         # get interventional history
         default_history_file = open(save_dir + history_file, 'rb') 
@@ -106,7 +106,7 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
         print('making movie with IVmultModifyScores intervention using model at ', load_path)
         prefix = "IVmultModifyScoresRand"
         if save_dir is None:
-            save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
+            save_dir = "./saliency_maps/movies/{}/{}/perturbation/".format(alg, env_name)
 
         # get interventional history
         default_history_file = open(save_dir + history_file, 'rb') 
@@ -117,7 +117,7 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
         print('making movie with IVnonChangingScores intervention using model at ', load_path)
         prefix = "IVnonChangingScores"
         if save_dir is None:
-            save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
+            save_dir = "./saliency_maps/movies/{}/{}/perturbation/".format(alg, env_name)
 
         # get interventional history
         default_history_file = open(save_dir + history_file, 'rb') 
@@ -128,7 +128,7 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
         print('making movie with IVdecrementScore intervention using model at ', load_path)
         prefix = "IVdecrementScore"
         if save_dir is None:
-            save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
+            save_dir = "./saliency_maps/movies/{}/{}/perturbation/".format(alg, env_name)
 
         # get interventional history
         default_history_file = open(save_dir + history_file, 'rb') 
@@ -139,7 +139,7 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
         print('making movie with IVmoveEnemies intervention using model at ', load_path)
         prefix = "IVmoveEnemies"
         if save_dir is None:
-            save_dir = "./saliency_maps/movies/{}/{}/".format(alg, env_name)
+            save_dir = "./saliency_maps/movies/{}/{}/perturbation/".format(alg, env_name)
 
         # get interventional history
         default_history_file = open(save_dir + history_file, 'rb') 
