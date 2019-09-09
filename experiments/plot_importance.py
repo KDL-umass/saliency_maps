@@ -31,7 +31,10 @@ def plot_impCorr_perFrame(episode_importance, num_samples, imp_type="action"):
         for j, cf_concept_imp in enumerate(CF_imp):
             sm_concept_imp = len(cf_concept_imp)*[SM_imp[j]] #multiply SM importance by number of interventions
             plt.scatter(sm_concept_imp, cf_concept_imp, label=CONCEPTS[GAME][j])
-            plt.ylabel('Euclidean Distance of Network Action Logits')
+            if imp_type=="action":
+                plt.ylabel('Euclidean Distance of Network Action Logits')
+            else:
+                plt.ylabel('Euclidean Distance of Network Value')
             plt.xlabel('Saliency Score')
             plt.title('Saliency Importance VS Counterfactual Importance for Each Object')
             plt.legend()
@@ -63,7 +66,10 @@ def plot_impCorr_perIV(episode_importance, num_samples, imp_type="action"):
         for i, IV in enumerate(interventions):
             plt.figure()
             plt.scatter(SM_imp[concept], CF_imp_concept[i])
-            plt.ylabel('Euclidean Distance of Network Action Logits')
+            if imp_type=="action":
+                plt.ylabel('Euclidean Distance of Network Action Logits')
+            else:
+                plt.ylabel('Euclidean Distance of Network Value')
             plt.xlabel('Saliency Score')
             plt.title('SM Importance VS CF Importance for {}'.format(IV))
             plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/IV{}Imp_{}.png'.format(num_samples, imp_type, IV))
@@ -94,14 +100,14 @@ def plot_imp_overTime(episode_importance, num_samples, imp_type="action"):
         plt.plot(SM_imp[concept], label="SM {}".format(concept))
         for i, IV in enumerate(interventions):
             plt.plot(CF_imp_concept[i], label="CF " + IV)
-            plt.ylabel('Importance')
+            plt.ylabel('{} Importance'.format(imp_type.upper()))
             plt.xlabel('Time')
             plt.title('Cummulative Importance Over an Episode')
             plt.legend()
         plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/{}Imp_{}.png'.format(num_samples, imp_type, concept))
 
 '''
-Box plot of CF importance per intervention.
+Box plot of CF importance per concept.
 '''
 def plot_CFimp_variability(episode_importance, num_samples, imp_type="action"):
     global GAME
@@ -137,6 +143,9 @@ def plot_CFimp_variability(episode_importance, num_samples, imp_type="action"):
     plt.subplots()
     plt.boxplot(new_imp)
     plt.xticks([])
+    plt.title('CF Importance Variability Over Episode')
+    plt.ylabel('CF {} Importance'.format(imp_type.upper()))
+    plt.xlabel('Concept')
     # for concept in CF_imp.keys():
     #     interventions = INTERVENTIONS["bricks"] if "bricks" in concept else INTERVENTIONS[concept]
     #     plt.boxplot(CF_imp[concept])
