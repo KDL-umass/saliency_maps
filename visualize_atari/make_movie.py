@@ -1,5 +1,5 @@
 from saliency_maps.visualize_atari.saliency import get_env_meta, score_frame, saliency_on_atari_frame, occlude
-from saliency_maps.visualize_atari.rollout import *
+from saliency_maps.rollout import *
 
 from baselines.run import train, build_env
 
