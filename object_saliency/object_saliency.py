@@ -60,7 +60,11 @@ def get_objPixels(env_objects, object_template, env_name, env, frame, state_json
 
 def run_through_model(model, obs, mode='actor'):
     _, value, _, _, a_logits = model.step(obs)
-    return value
+
+    if mode == 'actor':
+        return a_logits
+    elif mode == 'critic':
+        return value
 
 def score_frame(env_name, env, model, history, ix, obj_pixels, mode='actor'):
     orig_obs = history['ins'][ix]
@@ -88,7 +92,8 @@ def score_frame(env_name, env, model, history, ix, obj_pixels, mode='actor'):
         for f in [0,1,2,3]: #because atari passes 4 frames per round
             processed_obs[0,:,:,f]  = mask_object(orig_obs[0,:,:,f], history['color_frame'][ix], obj_pixels[f][i])
         q_o = run_through_model(model, processed_obs, mode=mode) #with masking object o
-        scores[i] = q - q_o
+        # scores[i] = q - q_o
+        scores[i] = np.linalg.norm(q - q_o)
     # print('scores:', scores)
 
     return scores, obj_pixels
@@ -118,7 +123,7 @@ def saliency_on_atari_frame(frame, pixels, score):
 
     for i,s in enumerate(score):
         for pixel in pixels[i]:
-            S[pixel[1], pixel[0]] = S[pixel[1], pixel[0]] + int(s*100)
+            S[pixel[1], pixel[0]] = S[pixel[1], pixel[0]] + int(s*10)
     S = np.clip(S, a_min=0, a_max=255)
 
     # plt.imshow(S)
@@ -154,8 +159,8 @@ def make_movie(alg, env_name, num_frames, prefix, load_history_path, load_model_
             ix = first_frame+i
             if ix < total_frames: # prevent loop from trying to process a frame ix greater than rollout length
                 frame = history['color_frame'][ix]
-                critic_saliency, obj_pixels = score_frame(env_name, env, model, history, ix, obj_pixels, mode='critic')
-                frame = saliency_on_atari_frame(frame, obj_pixels[3], critic_saliency)
+                saliency, obj_pixels = score_frame(env_name, env, model, history, ix, obj_pixels, mode='actor')
+                frame = saliency_on_atari_frame(frame, obj_pixels[3], saliency)
 
                 plt.imshow(frame) ; plt.title(env_name.lower(), fontsize=15)
                 writer.grab_frame() ; f.clear()
