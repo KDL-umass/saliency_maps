@@ -22,8 +22,8 @@ def plot(reward_mean, reward_std, saliency_mean, saliency_std):
     plt.ylabel("Reward")
     plt.title("Reward Over Time")
     plt.legend()
-    # plt.savefig(SAVE_DIR + 'amidar_rewards_ex_50s.png')
-    plt.show()
+    plt.savefig(SAVE_DIR + 'amidar_rewards_ex_50s.png')
+    # plt.show()
 
     plt.figure()
     for i, saliency in enumerate(saliency_mean):
@@ -33,8 +33,8 @@ def plot(reward_mean, reward_std, saliency_mean, saliency_std):
     plt.ylabel("Saliency on Score")
     plt.title("Saliency on Score Over Time")
     plt.legend()
-    # plt.savefig(SAVE_DIR + 'amidar_scoreSaliency_ex_50s.png')
-    plt.show()
+    plt.savefig(SAVE_DIR + 'amidar_scoreSaliency_ex_50s.png')
+    # plt.show()
 
 def get_rewards(history):
     grouped_rMean = []
@@ -53,7 +53,7 @@ def get_rewards(history):
 
     return grouped_rMean, grouped_rVar
 
-def get_score_saliency(history):
+def get_score_saliency(history, saliency_method='perturbation'):
     env, model = setUp("AmidarToyboxNoFrameskip-v4", "a2c", "./models/AmidarToyboxNoFrameskip-v4/amidar4e7_a2c.model")
     concept_pixels = get_amidar_score_pixels()
     grouped_sMean = []
@@ -69,10 +69,16 @@ def get_score_saliency(history):
                     score_saliency += [score_saliency[-1]]
                     continue
                 frame = history['color_frame'][i]
-                actor_saliency = score_frame(model, history, i, r=2, d=5, interp_func=occlude, mode='actor')
-                S = np.zeros((110, 84))
-                S[18:102, :] = actor_saliency
-                S = imresize(actor_saliency, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
+                if saliency_method == 'perturbation':
+                    actor_saliency = score_frame(model, history, i, r=2, d=5, interp_func=occlude, mode='actor')
+                    S = np.zeros((110, 84))
+                    S[18:102, :] = actor_saliency
+                    S = imresize(actor_saliency, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
+                elif saliency_method == 'object':
+                    actor_saliency = score_frame(model, history, i, r=2, d=5, interp_func=occlude, mode='actor')
+                    S = np.zeros((110, 84))
+                    S[18:102, :] = actor_saliency
+                    S = imresize(actor_saliency, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
 
                 #change pixels to white to see mapping in the real frame
                 # for pixel in concept_pixels:
@@ -106,6 +112,11 @@ def get_amidar_score_pixels():
     return concept_pixels
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description=None)
+    parser.add_argument('-s', '--saliency_method', default='perturbation', type=str, help='saliency method to be used')
+    args = parser.parse_args()
+
     load_dir = "./saliency_maps/movies/a2c/AmidarToyboxNoFrameskip-v4/"
     history_paths = ["default-150-amidartoyboxnoframeskip-v4-{}.pkl", "IVnonChangingScores-150-amidartoyboxnoframeskip-v4-{}.pkl", \
                     "IVmultModifyScoresRand-150-amidartoyboxnoframeskip-v4-{}.pkl", "IVmultModifyScores-150-amidartoyboxnoframeskip-v4-{}.pkl", \
@@ -126,11 +137,11 @@ if __name__ == '__main__':
 
     # #get saliency scores
     print("now getting saliency scores")
-    # saliency_mean, saliency_std = get_score_saliency(histories)
-    # filehandler1 = open(SAVE_DIR + 'score_saliencies_mean_50s.pkl', 'wb') 
-    # pickle.dump(saliency_mean, filehandler1)
-    # filehandler2 = open(SAVE_DIR + 'score_saliencies_std_50s.pkl', 'wb') 
-    # pickle.dump(saliency_std, filehandler2)
+    saliency_mean, saliency_std = get_score_saliency(histories, saliency_method=args.saliency_method)
+    filehandler1 = open(SAVE_DIR + 'score_saliencies_mean_50s.pkl', 'wb') 
+    pickle.dump(saliency_mean, filehandler1)
+    filehandler2 = open(SAVE_DIR + 'score_saliencies_std_50s.pkl', 'wb') 
+    pickle.dump(saliency_std, filehandler2)
     with open(SAVE_DIR + 'score_saliencies_mean_50s.pkl', "rb") as output_file:
         saliency_mean = pickle.load(output_file)
     with open(SAVE_DIR + 'score_saliencies_std_50s.pkl', "rb") as output_file:
@@ -138,11 +149,11 @@ if __name__ == '__main__':
 
     # #get rewards
     print("now preprocessing rewards")
-    # rewards_mean, rewards_std = get_rewards(histories)
-    # filehandler1 = open(SAVE_DIR + 'rewards_mean_50s.pkl', 'wb') 
-    # pickle.dump(rewards_mean, filehandler1)
-    # filehandler2 = open(SAVE_DIR + 'rewards_std_50s.pkl', 'wb') 
-    # pickle.dump(rewards_std, filehandler2)
+    rewards_mean, rewards_std = get_rewards(histories)
+    filehandler1 = open(SAVE_DIR + 'rewards_mean_50s.pkl', 'wb') 
+    pickle.dump(rewards_mean, filehandler1)
+    filehandler2 = open(SAVE_DIR + 'rewards_std_50s.pkl', 'wb') 
+    pickle.dump(rewards_std, filehandler2)
     with open(SAVE_DIR + 'rewards_mean_50s.pkl', "rb") as output_file:
         rewards_mean = pickle.load(output_file)
     with open(SAVE_DIR + 'rewards_std_50s.pkl', "rb") as output_file:
