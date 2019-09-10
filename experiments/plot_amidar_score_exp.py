@@ -1,5 +1,7 @@
-from saliency_maps.experiments import SAVE_DIR
 from saliency_maps.visualize_atari.saliency import *
+from saliency_maps.object_saliency.object_saliency import score_frame_by_pixels
+
+from saliency_maps.experiments import SAVE_DIR
 from saliency_maps.experiments.CFimportance_breakout import setUp
 
 import numpy as np
@@ -69,30 +71,30 @@ def get_score_saliency(history, saliency_method='perturbation'):
                     score_saliency += [score_saliency[-1]]
                     continue
                 frame = history['color_frame'][i]
+
                 if saliency_method == 'perturbation':
                     actor_saliency = score_frame(model, history, i, r=2, d=5, interp_func=occlude, mode='actor')
                     S = np.zeros((110, 84))
                     S[18:102, :] = actor_saliency
                     S = imresize(actor_saliency, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
+
+                    #change pixels to white to see mapping in the real frame
+                    # for pixel in concept_pixels:
+                    #     frame[pixel[1], pixel[0], 0] = 255
+                    #     frame[pixel[1], pixel[0], 1] = 255
+                    #     frame[pixel[1], pixel[0], 2] = 255
+                    # plt.imshow(frame)
+                    # plt.show()
+
+                    #map saliency score to score pixels
+                    score_pixels = []
+                    for pixels in concept_pixels:
+                        score_pixels.append(S[pixels[1]][pixels[0]])
+                    score_saliency += [np.mean(score_pixels)]
                 elif saliency_method == 'object':
-                    actor_saliency = score_frame(model, history, i, r=2, d=5, interp_func=occlude, mode='actor')
-                    S = np.zeros((110, 84))
-                    S[18:102, :] = actor_saliency
-                    S = imresize(actor_saliency, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
+                    score = score_frame_by_pixels(model, history, i, concept_pixels, mode='actor')
+                    score_saliency += [score]
 
-                #change pixels to white to see mapping in the real frame
-                # for pixel in concept_pixels:
-                #     frame[pixel[1], pixel[0], 0] = 255
-                #     frame[pixel[1], pixel[0], 1] = 255
-                #     frame[pixel[1], pixel[0], 2] = 255
-                # plt.imshow(frame)
-                # plt.show()
-
-                #map saliency score to score pixels
-                score_pixels = []
-                for pixels in concept_pixels:
-                    score_pixels.append(S[pixels[1]][pixels[0]])
-                score_saliency += [np.mean(score_pixels)]
             print("len score saliency: ", len(score_saliency))
             sample_saliency += [score_saliency]
         print("len sample saliency: ", len(sample_saliency))
@@ -117,11 +119,11 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--saliency_method', default='perturbation', type=str, help='saliency method to be used')
     args = parser.parse_args()
 
-    load_dir = "./saliency_maps/movies/a2c/AmidarToyboxNoFrameskip-v4/"
+    load_dir = "./saliency_maps/movies/a2c/AmidarToyboxNoFrameskip-v4/perturbation/"
     history_paths = ["default-150-amidartoyboxnoframeskip-v4-{}.pkl", "IVnonChangingScores-150-amidartoyboxnoframeskip-v4-{}.pkl", \
                     "IVmultModifyScoresRand-150-amidartoyboxnoframeskip-v4-{}.pkl", "IVmultModifyScores-150-amidartoyboxnoframeskip-v4-{}.pkl", \
                     "IVdecrementScore-150-amidartoyboxnoframeskip-v4-{}.pkl"]
-    SAVE_DIR = SAVE_DIR + "amidar_score_ex/" 
+    SAVE_DIR = SAVE_DIR + "amidar_score_ex/{}/".format(args.saliency_method) 
 
     histories = []
     for path in history_paths:
@@ -137,11 +139,11 @@ if __name__ == '__main__':
 
     # #get saliency scores
     print("now getting saliency scores")
-    saliency_mean, saliency_std = get_score_saliency(histories, saliency_method=args.saliency_method)
-    filehandler1 = open(SAVE_DIR + 'score_saliencies_mean_50s.pkl', 'wb') 
-    pickle.dump(saliency_mean, filehandler1)
-    filehandler2 = open(SAVE_DIR + 'score_saliencies_std_50s.pkl', 'wb') 
-    pickle.dump(saliency_std, filehandler2)
+    # saliency_mean, saliency_std = get_score_saliency(histories, saliency_method=args.saliency_method)
+    # filehandler1 = open(SAVE_DIR + 'score_saliencies_mean_50s.pkl', 'wb') 
+    # pickle.dump(saliency_mean, filehandler1)
+    # filehandler2 = open(SAVE_DIR + 'score_saliencies_std_50s.pkl', 'wb') 
+    # pickle.dump(saliency_std, filehandler2)
     with open(SAVE_DIR + 'score_saliencies_mean_50s.pkl', "rb") as output_file:
         saliency_mean = pickle.load(output_file)
     with open(SAVE_DIR + 'score_saliencies_std_50s.pkl', "rb") as output_file:

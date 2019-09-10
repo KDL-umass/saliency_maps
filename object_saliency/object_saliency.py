@@ -98,6 +98,19 @@ def score_frame(env_name, env, model, history, ix, obj_pixels, mode='actor'):
 
     return scores, obj_pixels
 
+def score_frame_by_pixels(model, history, ix, pixels, mode='actor'):
+    orig_obs = history['ins'][ix]
+    q = run_through_model(model, orig_obs, mode=mode) #without masking objects
+
+    #mask and calculate score
+    processed_obs = np.copy(orig_obs)
+    for f in [0,1,2,3]: #because atari passes 4 frames per round
+        processed_obs[0,:,:,f]  = mask_object(orig_obs[0,:,:,f], history['color_frame'][ix], pixels)
+    q_o = run_through_model(model, processed_obs, mode=mode) #with masking object o
+    score = np.linalg.norm(q - q_o)
+
+    return score
+
 def mask_object(obs, frame, obj_pixels):
     #modify obs (84x84) to be of size frame (PROBLEM: can't mask a 2d image with background color??)
     M = np.zeros((110, 84))
