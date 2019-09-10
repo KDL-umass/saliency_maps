@@ -1,24 +1,14 @@
-import tensorflow as tf
-from tensorflow.python.ops.parallel_for.gradients import jacobian
 import numpy as np
 import pickle
 import time
 from scipy.misc import imresize
-
-from baselines.common.input import observation_placeholder
-from baselines.common.tf_util import adjust_shape
 
 import matplotlib 
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
 
-from vis.visualization import visualize_saliency
-
-from saliency_maps.visualize_atari.saliency import get_env_meta, score_frame, saliency_on_atari_frame, occlude
 from saliency_maps.visualize_atari.make_movie import setUp
-
-from tensorflow.python.ops.parallel_for.gradients import jacobian
 
 def run_through_model(model, obs, mode='actor'):
     _, value, _, _, a_logits, grads = model.step(obs)
@@ -40,10 +30,21 @@ def saliency_on_atari_frame(saliency, atari, fudge_factor, channel=2, sigma=0):
     I = np.clip(I, 1., 255.).astype(np.uint8)
     return I
 
+def get_env_meta(env_name):
+    meta = {}
+    if env_name=="BreakoutToyboxNoFrameskip-v4":
+        meta['critic_ff'] = 600 ; meta['actor_ff'] = 300
+    elif env_name=="AmidarToyboxNoFrameskip-v4":
+        meta['critic_ff'] = 800 ; meta['actor_ff'] = 800
+    else:
+        print('environment "{}" not supported'.format(env_name))
+    return meta
+
 def make_movie(alg, env_name, num_frames, prefix, load_history_path, load_model_path, resolution=75, first_frame=1):
     # set up env and model
     env, model = setUp(env_name, alg, load_model_path)
     ob_space = env.observation_space
+    meta = get_env_meta(env_name)
 
     with open(load_history_path, "rb") as input_file:
         history = pickle.load(input_file)
@@ -69,7 +70,7 @@ def make_movie(alg, env_name, num_frames, prefix, load_history_path, load_model_
                 obs = history['ins'][ix-1]
 
                 jacobian = run_through_model(model, obs)
-                frame = saliency_on_atari_frame((jacobian[0,:,:,3]**2).squeeze(), frame, fudge_factor=10, channel=2) #blue
+                frame = saliency_on_atari_frame((jacobian[0,:,:,3]**2).squeeze(), frame, fudge_factor=meta['actor_ff'], channel=2) #blue
 
                 plt.imshow(frame) ; plt.title(env_name.lower(), fontsize=15)
                 writer.grab_frame() ; f.clear()
