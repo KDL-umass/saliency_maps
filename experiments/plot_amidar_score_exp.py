@@ -117,19 +117,21 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('-s', '--saliency_method', default='perturbation', type=str, help='saliency method to be used')
+    parser.add_argument('-n', '--num_frames', default=150, type=int, help='number of frames to be processed')
+    parser.add_argument('-r', '--range', default=[1,51], type=list, help='range of pkl file numbering')
     args = parser.parse_args()
 
     load_dir = "./saliency_maps/movies/a2c/AmidarToyboxNoFrameskip-v4/perturbation/"
-    history_paths = ["default-150-amidartoyboxnoframeskip-v4-{}.pkl", "IVnonChangingScores-150-amidartoyboxnoframeskip-v4-{}.pkl", \
-                    "IVmultModifyScoresRand-150-amidartoyboxnoframeskip-v4-{}.pkl", "IVmultModifyScores-150-amidartoyboxnoframeskip-v4-{}.pkl", \
-                    "IVdecrementScore-150-amidartoyboxnoframeskip-v4-{}.pkl"]
+    history_paths = ["default-{}-amidartoyboxnoframeskip-v4-{}.pkl", "IVnonChangingScores-{}-amidartoyboxnoframeskip-v4-{}.pkl", \
+                    "IVmultModifyScoresRand-{}-amidartoyboxnoframeskip-v4-{}.pkl", "IVmultModifyScores-{}-amidartoyboxnoframeskip-v4-{}.pkl", \
+                    "IVdecrementScore-{}-amidartoyboxnoframeskip-v4-{}.pkl"]
     SAVE_DIR = SAVE_DIR + "amidar_score_ex/{}/".format(args.saliency_method) 
 
     histories = []
     for path in history_paths:
         paths = []
-        for i in range(5,55):
-            path_ = path.format(i)
+        for i in range(args.range[0], args.range[1]):
+            path_ = path.format(args.num_frames, i)
             history_path = load_dir + path_
             with open(history_path, "rb") as output_file:
                 paths.append(pickle.load(output_file))
@@ -139,11 +141,11 @@ if __name__ == '__main__':
 
     # #get saliency scores
     print("now getting saliency scores")
-    # saliency_mean, saliency_std = get_score_saliency(histories, saliency_method=args.saliency_method)
-    # filehandler1 = open(SAVE_DIR + 'score_saliencies_mean_50s.pkl', 'wb') 
-    # pickle.dump(saliency_mean, filehandler1)
-    # filehandler2 = open(SAVE_DIR + 'score_saliencies_std_50s.pkl', 'wb') 
-    # pickle.dump(saliency_std, filehandler2)
+    saliency_mean, saliency_std = get_score_saliency(histories, saliency_method=args.saliency_method)
+    filehandler1 = open(SAVE_DIR + 'score_saliencies_mean_50s.pkl', 'wb') 
+    pickle.dump(saliency_mean, filehandler1)
+    filehandler2 = open(SAVE_DIR + 'score_saliencies_std_50s.pkl', 'wb') 
+    pickle.dump(saliency_std, filehandler2)
     with open(SAVE_DIR + 'score_saliencies_mean_50s.pkl', "rb") as output_file:
         saliency_mean = pickle.load(output_file)
     with open(SAVE_DIR + 'score_saliencies_std_50s.pkl', "rb") as output_file:
