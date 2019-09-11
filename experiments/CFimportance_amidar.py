@@ -164,7 +164,7 @@ def intervention_modify_scores(tb, state_json, env, model, pixels):
         obs, _, _, _ = env.step(0)
 
     #get logits and reset tb to state_json
-    actions, value, _, _, a_logits = model.step(obs)
+    actions, value, _, _, a_logits, _ = model.step(obs)
     tb.write_state_json(state_json) 
 
     return list(a_logits), move_distance
@@ -185,7 +185,7 @@ def intervention_modify_scores_rand(tb, state_json, env, model, pixels):
         obs, _, _, _ = env.step(0)
 
     #get logits and reset tb to state_json
-    actions, value, _, _, a_logits = model.step(obs)
+    actions, value, _, _, a_logits, _ = model.step(obs)
     tb.write_state_json(state_json) 
 
     return list(a_logits), move_distance
@@ -206,7 +206,7 @@ def intervention_nonchanging_scores(tb, state_json, env, model, pixels):
         obs, _, _, _ = env.step(0)
 
     #get logits and reset tb to state_json
-    actions, value, _, _, a_logits = model.step(obs)
+    actions, value, _, _, a_logits, _ = model.step(obs)
     tb.write_state_json(state_json) 
 
     return list(a_logits), move_distance
@@ -228,7 +228,7 @@ def intervention_decrement_score(tb, state_json, env, model, pixels):
         obs, _, _, _ = env.step(0)
 
     #get logits and reset tb to state_json
-    actions, value, _, _, a_logits = model.step(obs)
+    actions, value, _, _, a_logits, _ = model.step(obs)
     tb.write_state_json(state_json) 
 
     return list(a_logits), move_distance

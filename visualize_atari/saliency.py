@@ -13,7 +13,7 @@ def get_mask(center, size, r):
     return mask/mask.max()
 
 def run_through_model(model, obs, mode='actor'):
-    _, value, _, _, a_logits = model.step(obs)
+    _, value, _, _, a_logits, _ = model.step(obs)
     return value if mode == 'critic' else a_logits
 
 def score_frame(model, history, ix, r, d, interp_func, mode='actor'):

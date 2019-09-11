@@ -59,7 +59,7 @@ def get_objPixels(env_objects, object_template, env_name, env, frame, state_json
     return pixels
 
 def run_through_model(model, obs, mode='actor'):
-    _, value, _, _, a_logits = model.step(obs)
+    _, value, _, _, a_logits, _ = model.step(obs)
 
     if mode == 'actor':
         return a_logits
