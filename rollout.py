@@ -291,7 +291,7 @@ def single_intervention_shift_bricks(model, env, rollout_history, max_ep_len=3e3
         episode_length += 1
 
     print("Intervening on shifting bricks now and forward simulating with shift distance of {}".format(shift_dist))
-    #subtract (240-12) - x.pos of alive bricks
+    #subtract 216 - x.pos of alive bricks
     with BreakoutIntervention(tb) as intervention: 
         bricks = intervention.get_bricks()
         brick_size = (int(bricks[0]['size']['x']), int(bricks[0]['size']['y'])) 
@@ -303,8 +303,8 @@ def single_intervention_shift_bricks(model, env, rollout_history, max_ep_len=3e3
             if brick['alive'] is False:
                 intervention.set_brick(i)
                 shift_xPos = brick['position']['x'] + shift_dist*brick_size[0]
-                if shift_xPos > 240-12:
-                    shift_xPos = 12
+                if shift_xPos > 216:
+                    shift_xPos = 12*((shift_xPos - 216)/12)
 
                 for j,brick2 in enumerate(bricks):
                     if brick2['position']['x'] == shift_xPos and brick2['position']['y'] == brick['position']['y']:
@@ -747,7 +747,7 @@ def single_intervention_move_enemy_back(model, env, rollout_history, enemy_id, i
     episode_length, epr, done = 0, 0, False
 
     #pick random distance to move
-    move_step = random.randint(3,13)
+    move_step = random.randint(6,16)
 
     #logger.log("Running trained model")
     print("Running trained model")
@@ -758,6 +758,7 @@ def single_intervention_move_enemy_back(model, env, rollout_history, enemy_id, i
     #start new game and set start state to the same state as original game
     tb.new_game()
     tb.write_state_json(rollout_history['state_json'][0])
+    print(rollout_history['state_json'][0]['enemies'])
     
     #add start state to history
     state_json = tb.state_to_json()
@@ -796,9 +797,10 @@ def single_intervention_move_enemy_back(model, env, rollout_history, enemy_id, i
     #intervene by moving enemy behind
     print("Intervening on enemy position now -- moving {} steps behind".format(move_step))
     print("old next step: ", state_json['enemies'][enemy_id]['ai']['EnemyLookupAI']['next'])
-    print(state_json['enemies'][enemy_id])
+    
     next_step = state_json['enemies'][enemy_id]['ai']['EnemyLookupAI']['next'] - move_step
     state_json['enemies'][enemy_id]['ai']['EnemyLookupAI']['next'] = next_step
+
     print("new next step: ", state_json['enemies'][enemy_id]['ai']['EnemyLookupAI']['next'])
     tb.write_state_json(state_json)
 
