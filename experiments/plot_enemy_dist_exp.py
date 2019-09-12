@@ -24,10 +24,21 @@ def plot(distances, saliency):
     plt.plot(range(len(distances)), [0]*len(distances), '--', color='black', alpha=0.5)
     plt.xlabel("Time")
     plt.ylabel("Distance to Player")
-    plt.title("Distance of Enemies Over Time w.r.t. Player")
+    plt.title("Distance of Enemies w.r.t. Player Over Time")
     plt.legend()
-    plt.savefig(SAVE_DIR + 'amidar_dist_saliency.png')
+    plt.savefig(SAVE_DIR + 'amidar_dist_saliency_time.png')
     # plt.show()
+
+def plot_correlation(distances, saliency):
+    labels = ['e1', 'e2', 'e3', 'e4', 'e5']
+    plt.figure()
+    for i in range(5):
+        plt.scatter([s[i] for s in saliency], [t[i] for t in distances], label=labels[i])
+    plt.xlabel("Saliency on Enemy")
+    plt.ylabel("Distance to Player")
+    plt.title("Correlation Between Distance to Player and Saliency on Enemy")
+    plt.legend()
+    plt.savefig(SAVE_DIR + 'amidar_dist_saliency_correlation.png')
 
 def get_dist(history, env, model):
     distances = []
@@ -119,5 +130,7 @@ if __name__ == '__main__':
         distances = pickle.load(output_file)
     with open(SAVE_DIR + 'saliency_on_enemies.pkl', "rb") as output_file:
         saliency = pickle.load(output_file)
+
     plot(distances, saliency)
+    plot_correlation(distances, saliency)
     
