@@ -38,14 +38,14 @@ def plot(reward_mean, reward_std, saliency_mean, saliency_std):
     plt.savefig(SAVE_DIR + 'amidar_scoreSaliency_ex_50s.png')
     # plt.show()
 
-def get_rewards(history):
+def get_rewards(history, num_frames=150):
     grouped_rMean = []
     grouped_rVar = []
     for i,history_type in enumerate(histories):
         total_rewards = []
         for j, history in enumerate(history_type):
-            rewards = history['rewards'][:150]
-            while len(rewards) != 150:
+            rewards = history['rewards'][:num_frames]
+            while len(rewards) != num_frames:
                 # print("died quickly, have to append 0s {}".format(len(rewards)))
                 # print(rewards[-1])
                 rewards.append(rewards[-1])
@@ -55,7 +55,7 @@ def get_rewards(history):
 
     return grouped_rMean, grouped_rVar
 
-def get_score_saliency(history, saliency_method='perturbation'):
+def get_score_saliency(history, saliency_method='perturbation', num_frames=150):
     env, model = setUp("AmidarToyboxNoFrameskip-v4", "a2c", "./models/AmidarToyboxNoFrameskip-v4/amidar4e7_a2c.model")
     concept_pixels = get_amidar_score_pixels()
     grouped_sMean = []
@@ -65,7 +65,7 @@ def get_score_saliency(history, saliency_method='perturbation'):
         sample_saliency = []
         for history in history_type:
             score_saliency = []
-            for i in range(150):
+            for i in range(num_frames):
                 #get raw saliency score
                 if len(history['color_frame']) <= i:
                     score_saliency += [score_saliency[-1]]
@@ -141,11 +141,11 @@ if __name__ == '__main__':
 
     # #get saliency scores
     print("now getting saliency scores")
-    saliency_mean, saliency_std = get_score_saliency(histories, saliency_method=args.saliency_method)
-    filehandler1 = open(SAVE_DIR + 'score_saliencies_mean_50s.pkl', 'wb') 
-    pickle.dump(saliency_mean, filehandler1)
-    filehandler2 = open(SAVE_DIR + 'score_saliencies_std_50s.pkl', 'wb') 
-    pickle.dump(saliency_std, filehandler2)
+    # saliency_mean, saliency_std = get_score_saliency(histories, saliency_method=args.saliency_method, num_frames=args.num_frames)
+    # filehandler1 = open(SAVE_DIR + 'score_saliencies_mean_50s.pkl', 'wb') 
+    # pickle.dump(saliency_mean, filehandler1)
+    # filehandler2 = open(SAVE_DIR + 'score_saliencies_std_50s.pkl', 'wb') 
+    # pickle.dump(saliency_std, filehandler2)
     with open(SAVE_DIR + 'score_saliencies_mean_50s.pkl', "rb") as output_file:
         saliency_mean = pickle.load(output_file)
     with open(SAVE_DIR + 'score_saliencies_std_50s.pkl', "rb") as output_file:
@@ -153,11 +153,11 @@ if __name__ == '__main__':
 
     # #get rewards
     print("now preprocessing rewards")
-    rewards_mean, rewards_std = get_rewards(histories)
-    filehandler1 = open(SAVE_DIR + 'rewards_mean_50s.pkl', 'wb') 
-    pickle.dump(rewards_mean, filehandler1)
-    filehandler2 = open(SAVE_DIR + 'rewards_std_50s.pkl', 'wb') 
-    pickle.dump(rewards_std, filehandler2)
+    # rewards_mean, rewards_std = get_rewards(histories, num_frames=args.num_frames)
+    # filehandler1 = open(SAVE_DIR + 'rewards_mean_50s.pkl', 'wb') 
+    # pickle.dump(rewards_mean, filehandler1)
+    # filehandler2 = open(SAVE_DIR + 'rewards_std_50s.pkl', 'wb') 
+    # pickle.dump(rewards_std, filehandler2)
     with open(SAVE_DIR + 'rewards_mean_50s.pkl', "rb") as output_file:
         rewards_mean = pickle.load(output_file)
     with open(SAVE_DIR + 'rewards_std_50s.pkl', "rb") as output_file:
@@ -165,4 +165,7 @@ if __name__ == '__main__':
     # for i in range(len(rewards_std)):
     #     print(rewards_std[i][149])
 
+    print(saliency_mean)
+    print(rewards_mean)
+    
     plot(rewards_mean, rewards_std, saliency_mean, saliency_std)
