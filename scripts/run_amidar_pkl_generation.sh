@@ -20,7 +20,7 @@ echo "LIBCTOYBOX $LIBCTOYBOX"
 
 source ~/.bashrc ; source activate tf
 
-python -m saliency_maps.experiments.runIV_amidar_score
+python -m saliency_maps.utils.runIV_amidar_score
 
 echo "Done"
 
