@@ -18,17 +18,21 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--saliency_method', default='perturbation', type=str, help='saliency method to be used')
     args = parser.parse_args()
 
+    default_history = './saliency_maps/movies/a2c/BreakoutToyboxNoFrameskip-v4/perturbation/default-150-breakouttoyboxnoframeskip-v4-5.pkl'
     load_dir = "./saliency_maps/movies/a2c/BreakoutToyboxNoFrameskip-v4/perturbation/IVshiftBricks/"
     history_path = load_dir + "IVshiftBricks-150-breakouttoyboxnoframeskip-v4-5_s{}.pkl"
     SAVE_DIR = SAVE_DIR + "breakout_shiftBrick_ex/{}/".format(args.saliency_method) 
 
     env, model = setUp("BreakoutToyboxNoFrameskip-v4", "a2c", "./models/BreakoutToyboxNoFrameskip-v4/breakout4e7_a2c.model")
-
-    #read history file
-    for i in range(17):
-        path = history_path.format(i+1)
-        with open(path, "rb") as output_file:
-            history = pickle.load(output_file)
+    
+    for i in range(18):
+        if i == 0:
+            with open(default_history, "rb") as output_file:
+                history = pickle.load(output_file)
+        else:
+            path = history_path.format(i)
+            with open(path, "rb") as output_file:
+                history = pickle.load(output_file)
 
         for j in range(120, 126):
             frame = history['color_frame'][j]
@@ -40,5 +44,5 @@ if __name__ == '__main__':
                 frame = saliency_on_atari_frame(critic_saliency, frame, fudge_factor=600, channel=0)
 
                 plt.imshow(frame)
-                plt.savefig(SAVE_DIR + 'frame{}_s{}'.format(j, i+1))
+                plt.savefig(SAVE_DIR + 'frame{}_s{}'.format(j, i))
     
