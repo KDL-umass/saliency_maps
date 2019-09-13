@@ -14,7 +14,7 @@ GAME = None
 '''
 Scatter plot of SM vs CF importance per time step in episode.
 '''
-def plot_impCorr_perFrame(episode_importance, num_samples, imp_type="action"):
+def plot_impCorr_perFrame(episode_importance, num_samples, imp_type="action", saliency_method='perturbation'):
     global GAME
 
     #plot per time step
@@ -38,12 +38,12 @@ def plot_impCorr_perFrame(episode_importance, num_samples, imp_type="action"):
             plt.xlabel('Saliency Score')
             plt.title('Saliency Importance VS Counterfactual Importance for Each Object')
             plt.legend()
-        plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/frame{}_{}Imp.png'.format(num_samples, i+30, imp_type))
+        plt.savefig(SAVE_DIR + 'CF_imp/{}/default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/frame{}_{}Imp.png'.format(saliency_method, num_samples, i+30, imp_type))
 
 '''
 Scatter plot of SM vs CF importance per intervention.
 '''
-def plot_impCorr_perIV(episode_importance, num_samples, imp_type="action"):
+def plot_impCorr_perIV(episode_importance, num_samples, imp_type="action", saliency_method='perturbation'):
     global GAME
     concepts = CONCEPTS[GAME]
 
@@ -72,12 +72,12 @@ def plot_impCorr_perIV(episode_importance, num_samples, imp_type="action"):
                 plt.ylabel('Euclidean Distance of Network Value')
             plt.xlabel('Saliency Score')
             plt.title('SM Importance VS CF Importance for {}'.format(IV))
-            plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/IV{}Imp_{}.png'.format(num_samples, imp_type, IV))
+            plt.savefig(SAVE_DIR + 'CF_imp/{}/default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/IV{}Imp_{}.png'.format(saliency_method, num_samples, imp_type, IV))
 
 '''
 Line plot of importance over time.
 '''
-def plot_imp_overTime(episode_importance, num_samples, imp_type="action"):
+def plot_imp_overTime(episode_importance, num_samples, imp_type="action", saliency_method='perturbation'):
     global GAME
     concepts = CONCEPTS[GAME]
 
@@ -97,19 +97,22 @@ def plot_imp_overTime(episode_importance, num_samples, imp_type="action"):
         interventions = INTERVENTIONS["bricks"] if "bricks" in concept else INTERVENTIONS[concept]
         CF_imp_concept = list(zip(*CF_imp[concept])) #separating by columns (ie. interventions)
         plt.figure()
-        plt.plot(SM_imp[concept], label="SM {}".format(concept))
+        for i in np.argsort(SM_imp[concept])[100:]:
+            plt.axvline(x=i, linestyle='-', color='black', alpha=0.2)
+        # plt.plot(SM_imp[concept], label="SM_imp")
+        # plt.fill_between(range(len(SM_imp[concept])), np.subtract([t[i] for t in distances], [s[i] for s in saliency]), np.add([t[i] for t in distances], [s[i] for s in saliency]), alpha=0.2)
         for i, IV in enumerate(interventions):
             plt.plot(CF_imp_concept[i], label="CF " + IV)
             plt.ylabel('{} Importance'.format(imp_type.upper()))
             plt.xlabel('Time')
             plt.title('Cummulative Importance Over an Episode')
             plt.legend()
-        plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/{}Imp_{}.png'.format(num_samples, imp_type, concept))
+        plt.savefig(SAVE_DIR + 'CF_imp/{}/default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/{}Imp_{}.png'.format(saliency_method, num_samples, imp_type, concept))
 
 '''
 Box plot of CF importance per concept.
 '''
-def plot_CFimp_variability(episode_importance, num_samples, imp_type="action"):
+def plot_CFimp_variability(episode_importance, num_samples, imp_type="action", saliency_method='perturbation'):
     global GAME
     concepts = CONCEPTS[GAME]
 
@@ -159,12 +162,12 @@ def plot_CFimp_variability(episode_importance, num_samples, imp_type="action"):
         #     plt.xlabel('Intervention Type')
         #     plt.title('CF Importance Variability Over Episode')
         #     # plt.legend()
-    plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/box_plt_{}{}.png'.format(num_samples, imp_type, concept))
+    plt.savefig(SAVE_DIR + 'CF_imp/{}/default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/box_plt_{}{}.png'.format(saliency_method, num_samples, imp_type, concept))
 
 '''
 Scatter plot for CF importance versus intensity of intervention per intervention.
 '''
-def plot_IVintensity_corr(episode_importance, num_samples, imp_type="action"):
+def plot_IVintensity_corr(episode_importance, num_samples, imp_type="action", saliency_method='perturbation'):
     global GAME
     concepts = CONCEPTS[GAME]
 
@@ -195,7 +198,7 @@ def plot_IVintensity_corr(episode_importance, num_samples, imp_type="action"):
             plt.ylabel('CF Importance')
             plt.xlabel('Intervention Intensity')
             plt.title('Intervention Intensity VS CF Importance for {}'.format(IV))
-            plt.savefig(SAVE_DIR + 'default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/IV_intensity_correlation_{}.png'.format(num_samples, IV))
+            plt.savefig(SAVE_DIR + 'CF_imp/{}/default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/IV_intensity_correlation_{}.png'.format(saliency_method, num_samples, IV))
 
 def duplicates(lst, item):
     return [i for i, x in enumerate(lst) if x == item]
@@ -205,6 +208,7 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--load_path', help='path to load the pickle file containing importance information from')
     parser.add_argument('-n', '--num_samples', default=10, type=int, help='number of samples to compute importance over')
     parser.add_argument('-g', '--game', default="Breakout", help='game we are computing the plots for')
+    parser.add_argument('-s', '--saliency_method', default="perturbation", help='saliency method to be used')
     args = parser.parse_args()
 
     GAME = args.game
@@ -214,14 +218,14 @@ if __name__ == '__main__':
     with open(args.load_path + "/episode_valueImp.pkl", 'rb') as f:
         episode_valueImp = pickle.load(f)
 
-    plot_impCorr_perFrame(episode_actionImp, args.num_samples)
-    plot_impCorr_perIV(episode_actionImp, args.num_samples)
-    plot_imp_overTime(episode_actionImp, args.num_samples)
-    plot_CFimp_variability(episode_actionImp, args.num_samples)
-    plot_IVintensity_corr(episode_actionImp, args.num_samples)
+    plot_impCorr_perFrame(episode_actionImp, args.num_samples, saliency_method=args.saliency_method)
+    plot_impCorr_perIV(episode_actionImp, args.num_samples, saliency_method=args.saliency_method)
+    plot_imp_overTime(episode_actionImp, args.num_samples, saliency_method=args.saliency_method)
+    plot_CFimp_variability(episode_actionImp, args.num_samples, saliency_method=args.saliency_method)
+    plot_IVintensity_corr(episode_actionImp, args.num_samples, saliency_method=args.saliency_method)
 
-    plot_impCorr_perFrame(episode_valueImp, args.num_samples, imp_type="value")
-    plot_impCorr_perIV(episode_valueImp, args.num_samples, imp_type="value")
-    plot_imp_overTime(episode_valueImp, args.num_samples, imp_type="value")
-    plot_CFimp_variability(episode_valueImp, args.num_samples, imp_type="value")
-    plot_IVintensity_corr(episode_valueImp, args.num_samples, imp_type="value")
+    plot_impCorr_perFrame(episode_valueImp, args.num_samples, imp_type="value", saliency_method=args.saliency_method)
+    plot_impCorr_perIV(episode_valueImp, args.num_samples, imp_type="value", saliency_method=args.saliency_method)
+    plot_imp_overTime(episode_valueImp, args.num_samples, imp_type="value", saliency_method=args.saliency_method)
+    plot_CFimp_variability(episode_valueImp, args.num_samples, imp_type="value", saliency_method=args.saliency_method)
+    plot_IVintensity_corr(episode_valueImp, args.num_samples, imp_type="value", saliency_method=args.saliency_method)

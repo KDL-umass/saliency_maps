@@ -6,6 +6,7 @@ from toybox.toybox import Toybox, Input
 from saliency_maps.visualize_atari.make_movie import *
 from saliency_maps.visualize_atari.saliency import *
 from saliency_maps.experiments import CONCEPTS
+from saliency_maps.utils.get_concept_pixels import get_concept_pixels_amidar
 
 from scipy.misc import imresize # preserves single-pixel info _unlike_ img = img[::2,::2]
 
@@ -45,7 +46,7 @@ def compute_importance(env_name, alg, model_path, history_path, density=5, radiu
             interventions_imp = []
 
             #get concept location pixels
-            concept_pixels = get_concept_pixels(concept, history['state_json'][i], [frame.shape[1],frame.shape[0]], tb)
+            concept_pixels = get_concept_pixels_amidar(concept, history['state_json'][i], [frame.shape[1],frame.shape[0]], tb)
             print(concept_pixels)
             
             #change pixels to white to see mapping in the real frame
@@ -74,53 +75,6 @@ def compute_importance(env_name, alg, model_path, history_path, density=5, radiu
 
 def get_env_concepts():
     return CONCEPTS["Amidar"]
-
-def get_concept_pixels(concept, state_json, size, tb):
-    pixels = []
-    board_width = size[0]
-    board_length = size[1]
-    print("concept: ", concept)
-    ["tiles", "player", "enemies", "score", "lives"]
-
-    if concept == "tiles":
-        return []
-    elif concept == "player":
-        player_index = (state_json[concept]['position']['x'], state_json[concept]['position']['y']) #world pos
-        player_pos = world_to_pixels(player_index, tb) #get pixel pos
-        #get pixels of tile the player is sitting on
-        for x in range(5):
-            for y in range(6):
-                pixels += [(player_pos[0]+x, player_pos[1]+y)]
-        #get pixels outside of tile the player is sitting on
-        above_tile = (player_pos[0], player_pos[1]-1)
-        below_tile = (player_pos[0], player_pos[1]+1)
-        left_tile = (player_pos[0]-1, player_pos[1])
-        right_tile = (player_pos[0]+1, player_pos[1])
-        pixels += [above_tile, below_tile, left_tile, right_tile]
-    elif concept == "enemies":
-        for enemy in state_json[concept]:
-            enemy_index = (enemy['position']['x'], enemy['position']['y']) #world pos
-            enemy_pos = world_to_pixels(enemy_index, tb) #get pixel pos
-            #get pixels of tile the enemy is sitting on
-            for x in range(5):
-                for y in range(6):
-                    pixels += [(enemy_pos[0]+x, enemy_pos[1]+y)]
-            #get pixels outside of tile the enemy is sitting on
-            above_tile = (enemy_pos[0], enemy_pos[1]-1)
-            below_tile = (enemy_pos[0], enemy_pos[1]+1)
-            left_tile = (enemy_pos[0]-1, enemy_pos[1])
-            right_tile = (enemy_pos[0]+1, enemy_pos[1])
-            pixels += [above_tile, below_tile, left_tile, right_tile]
-    elif concept == "score":
-        for x in range(80,105):
-            for y in range(195,210):
-                pixels += [(x,y)]
-    elif concept == "lives":
-        for x in range(115,150):
-            for y in range(195,210):
-                pixels += [(x,y)]
-
-    return pixels
 
 def apply_intervention(concept, a_logits, tb, state_json, env, model, num_samples):
     CF_imp_concept = []

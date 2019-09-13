@@ -1,11 +1,13 @@
+from saliency_maps.visualize_atari.make_movie import setUp
+from saliency_maps.visualize_atari.saliency import score_frame, saliency_on_atari_frame, occlude
+from saliency_maps.object_saliency.object_saliency import score_frame_by_pixels
+from saliency_maps.utils.get_concept_pixels import get_concept_pixels_breakout
+from saliency_maps.experiments import CONCEPTS
+
 from baselines.common import atari_wrappers
 
 from toybox.interventions.breakout import *
 from toybox.toybox import Toybox, Input
-
-from saliency_maps.visualize_atari.make_movie import *
-from saliency_maps.visualize_atari.saliency import *
-from saliency_maps.experiments import CONCEPTS
 
 from scipy.misc import imresize # preserves single-pixel info _unlike_ img = img[::2,::2]
 
@@ -19,13 +21,17 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 #read history and intervene on each timestep
-def compute_importance(env_name, alg, model_path, history_path, num_samples, density=5, radius=2):
+def compute_importance(env_name, alg, model_path, history_path, num_samples, density=5, radius=2, saliency_method='perturbation'):
     #setup model, env, history and dictionary to store data in
     env, model = setUp(env_name, alg, model_path)
     env.reset()
     with open(history_path, "rb") as output_file:
         history = pickle.load(output_file)
-    save_dir = "./saliency_maps/experiments/results/"
+    save_dir = "./saliency_maps/experiments/results/CF_imp/"
+    if saliency_method=='perturbation':
+        save_dir += 'perturbation/'
+    else:
+        save_dir += 'object/'
     history_name = history_path.split("/")[-1][:-4]
     print(history_name)
 
@@ -44,22 +50,23 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
 
         #get raw saliency score
         frame = history['color_frame'][i-1]
-        actor_saliency = score_frame(model, history, i-1, radius, density, interp_func=occlude, mode='actor')
-        S_action = np.zeros((110, 84))
-        S_action[18:102, :] = actor_saliency
-        S_action = imresize(actor_saliency, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
+        if saliency_method == 'perturbation':
+            actor_saliency = score_frame(model, history, i-1, radius, density, interp_func=occlude, mode='actor')
+            S_action = np.zeros((110, 84))
+            S_action[18:102, :] = actor_saliency
+            S_action = imresize(actor_saliency, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
 
-        critic_saliency = score_frame(model, history, i-1, radius, density, interp_func=occlude, mode='critic')
-        S_value = np.zeros((110, 84))
-        S_value[18:102, :] = critic_saliency
-        S_value = imresize(critic_saliency, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
+            critic_saliency = score_frame(model, history, i-1, radius, density, interp_func=occlude, mode='critic')
+            S_value = np.zeros((110, 84))
+            S_value[18:102, :] = critic_saliency
+            S_value = imresize(critic_saliency, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
 
-        #get frame with saliency
-        frame = saliency_on_atari_frame(actor_saliency, frame, fudge_factor=300, channel=2) #blue
-        frame = saliency_on_atari_frame(critic_saliency, frame, fudge_factor=600, channel=0) #red
-        plt.figure()
-        plt.imshow(frame)
-        plt.savefig(save_dir + history_name + '/num_samples_{}/frame{}.png'.format(num_samples, i))
+            #get frame with saliency
+            frame = saliency_on_atari_frame(actor_saliency, frame, fudge_factor=300, channel=2) #blue
+            frame = saliency_on_atari_frame(critic_saliency, frame, fudge_factor=600, channel=0) #red
+            plt.figure()
+            plt.imshow(frame)
+            plt.savefig(save_dir + history_name + '/num_samples_{}/frame{}.png'.format(num_samples, i))
 
         #go through all objects and get object saliency and CF importance
         frame = history['color_frame'][i-1]
@@ -68,7 +75,7 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
             concept_valueImp[concept] = {}
 
             #get concept location pixels
-            concept_pixels = get_concept_pixels(concept, history['state_json'][i-1], [frame.shape[1],frame.shape[0]])
+            concept_pixels = get_concept_pixels_breakout(concept, history['state_json'][i-1], [frame.shape[1],frame.shape[0]])
             
             #change pixels to white to see mapping in the real frame
             # for pixel in concept_pixels:
@@ -80,11 +87,17 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
 
             score_pixels_actions = []
             score_pixels_values = []
-            for pixels in concept_pixels:
-                score_pixels_actions.append(S_action[pixels[1]][pixels[0]])
-                score_pixels_values.append(S_value[pixels[1]][pixels[0]])
-            concept_actionImp[concept]["SM_imp"] = np.mean(score_pixels_actions)
-            concept_valueImp[concept]["SM_imp"] = np.mean(score_pixels_values)
+            if saliency_method == 'perturbation':
+                for pixels in concept_pixels:
+                    score_pixels_actions.append(S_action[pixels[1]][pixels[0]])
+                    score_pixels_values.append(S_value[pixels[1]][pixels[0]])
+                concept_actionImp[concept]["SM_imp"] = np.mean(score_pixels_actions)
+                concept_valueImp[concept]["SM_imp"] = np.mean(score_pixels_values)
+            elif saliency_method == 'object':
+                actor_score = score_frame_by_pixels(model, history, i-1, concept_pixels, mode='actor')
+                critic_score = score_frame_by_pixels(model, history, i-1, concept_pixels, mode='critic')
+                concept_actionImp[concept]["SM_imp"] = actor_score
+                concept_valueImp[concept]["SM_imp"] = critic_score
 
             #apply interventions to concept
             CF_imp_action, CF_imp_value, CF_IV_intensity = apply_interventions(concept, history['a_logits'][i], history['values'][i], tb, \
@@ -107,136 +120,6 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
 
 def get_env_concepts():
     return CONCEPTS["Breakout"]
-
-def get_concept_pixels(concept, state_json, size):
-    pixels = []
-
-    if concept == "balls":
-        ball_pos = (int(state_json[concept][0]['position']['x']), int(state_json[concept][0]['position']['y']))
-        ball_radius = int(state_json['ball_radius'])
-        ball_top_left = (ball_pos[0]-ball_radius, ball_pos[1]-ball_radius)
-
-        for x in range(ball_radius*2):
-            for y in range(ball_radius*2):
-                pixels += [(ball_top_left[0]+x, ball_top_left[1]+y)]
-    elif concept == "paddle":
-        paddle_pos = (int(state_json[concept]['position']['x']), int(state_json[concept]['position']['y']))
-        paddle_width = int(state_json['paddle_width']) 
-
-        for i in range(int(paddle_width/2)+1):
-            left_pos = (paddle_pos[0] - i, paddle_pos[1])
-            right_pos = (paddle_pos[0] + i, paddle_pos[1])
-            lleft_pos = (paddle_pos[0] - i, paddle_pos[1] + 1)
-            lright_pos = (paddle_pos[0] + i, paddle_pos[1] + 1)
-            llleft_pos = (paddle_pos[0] - i, paddle_pos[1] + 2)
-            llright_pos = (paddle_pos[0] + i, paddle_pos[1] + 2)
-            if i == 0:
-                pixels += [left_pos, lleft_pos, lright_pos, llleft_pos, llright_pos]
-            else:
-                pixels += [left_pos, right_pos, lleft_pos, lright_pos, llleft_pos, llright_pos]
-    elif concept == "bricks_top_left":
-        bricks = state_json["bricks"]
-        brick_size = (int(bricks[0]['size']['x']), int(bricks[0]['size']['y'])) 
-        upper_left_corner = (int(bricks[0]['position']['x']), int(bricks[0]['position']['y']))
-        lower_right_corner = (int(bricks[-1]['position']['x']) + brick_size[0] - 1, int(bricks[-1]['position']['y']) + brick_size[1] - 1)
-
-        x_partition = int((lower_right_corner[0] - upper_left_corner[0] + 1)/3)
-        y_partition = int((lower_right_corner[1] - upper_left_corner[1] + 1)/2)
-
-        for x in range(x_partition):
-            for y in range(y_partition):
-                pixels += [(upper_left_corner[0] + x, upper_left_corner[1] + y)]
-    elif concept == "bricks_top_mid":
-        bricks = state_json["bricks"]
-        brick_size = (int(bricks[0]['size']['x']), int(bricks[0]['size']['y'])) 
-        upper_left_corner = (int(bricks[0]['position']['x']), int(bricks[0]['position']['y']))
-        lower_right_corner = (int(bricks[-1]['position']['x']) + brick_size[0] - 1, int(bricks[-1]['position']['y']) + brick_size[1] - 1)
-
-        x_partition = int((lower_right_corner[0] - upper_left_corner[0] + 1)/3)
-        y_partition = int((lower_right_corner[1] - upper_left_corner[1] + 1)/2)
-
-        for x in range(x_partition):
-            for y in range(y_partition):
-                pixels += [(upper_left_corner[0] + x_partition + x, upper_left_corner[1] + y)]
-    elif concept == "bricks_top_right":
-        bricks = state_json["bricks"]
-        brick_size = (int(bricks[0]['size']['x']), int(bricks[0]['size']['y'])) 
-        upper_left_corner = (int(bricks[0]['position']['x']), int(bricks[0]['position']['y']))
-        lower_right_corner = (int(bricks[-1]['position']['x']) + brick_size[0] - 1, int(bricks[-1]['position']['y']) + brick_size[1] - 1)
-
-        x_partition = int((lower_right_corner[0] - upper_left_corner[0] + 1)/3)
-        y_partition = int((lower_right_corner[1] - upper_left_corner[1] + 1)/2)
-
-        for x in range(x_partition):
-            for y in range(y_partition):
-                pixels += [(upper_left_corner[0] + 2*x_partition + x, upper_left_corner[1] + y)]
-    elif concept == "bricks_bottom_left":
-        bricks = state_json["bricks"]
-        brick_size = (int(bricks[0]['size']['x']), int(bricks[0]['size']['y'])) 
-        upper_left_corner = (int(bricks[0]['position']['x']), int(bricks[0]['position']['y']))
-        lower_right_corner = (int(bricks[-1]['position']['x']) + brick_size[0] - 1, int(bricks[-1]['position']['y']) + brick_size[1] - 1)
-
-        x_partition = int((lower_right_corner[0] - upper_left_corner[0] + 1)/3)
-        y_partition = int((lower_right_corner[1] - upper_left_corner[1] + 1)/2)
-
-        for x in range(x_partition):
-            for y in range(y_partition):
-                pixels += [(upper_left_corner[0] + x, upper_left_corner[1] + y_partition + y)]
-    elif concept == "bricks_bottom_mid":
-        bricks = state_json["bricks"]
-        brick_size = (int(bricks[0]['size']['x']), int(bricks[0]['size']['y'])) 
-        upper_left_corner = (int(bricks[0]['position']['x']), int(bricks[0]['position']['y']))
-        lower_right_corner = (int(bricks[-1]['position']['x']) + brick_size[0] - 1, int(bricks[-1]['position']['y']) + brick_size[1] - 1)
-
-        x_partition = int((lower_right_corner[0] - upper_left_corner[0] + 1)/3)
-        y_partition = int((lower_right_corner[1] - upper_left_corner[1] + 1)/2)
-
-        for x in range(x_partition):
-            for y in range(y_partition):
-                pixels += [(upper_left_corner[0] + x_partition + x, upper_left_corner[1] + y_partition + y)]
-    elif concept == "bricks_bottom_right":
-        bricks = state_json["bricks"]
-        brick_size = (int(bricks[0]['size']['x']), int(bricks[0]['size']['y'])) 
-        upper_left_corner = (int(bricks[0]['position']['x']), int(bricks[0]['position']['y']))
-        lower_right_corner = (int(bricks[-1]['position']['x']) + brick_size[0] - 1, int(bricks[-1]['position']['y']) + brick_size[1] - 1)
-
-        x_partition = int((lower_right_corner[0] - upper_left_corner[0] + 1)/3)
-        y_partition = int((lower_right_corner[1] - upper_left_corner[1] + 1)/2)
-
-        for x in range(x_partition):
-            for y in range(y_partition):
-                pixels += [(upper_left_corner[0] + 2*x_partition + x, upper_left_corner[1] + y_partition + y)]
-    elif concept == "bricks":
-        bricks = state_json["bricks"]
-        for brick in bricks:
-            if brick['alive']:
-                brick_size = (int(brick['size']['x']), int(brick['size']['y']))
-                brick_pos = (int(brick['position']['x']), int(brick['position']['y']))
-                pix_brick = []
-                for x in range(brick_size[0]):
-                    for y in range(brick_size[1]):
-                        pix_brick.append((brick_pos[0]+x, brick_pos[1]+y))
-                pixels.append(pix_brick)
-    elif concept == "lives":
-        lives_size = (24,12)
-        lives_pos = (148,1)
-        for x in range(lives_size[0]):
-            for y in range(lives_size[1]):
-                pixels += [(lives_pos[0]+x, lives_pos[1]+y)]
-    elif concept == "score":
-        score_size = (80,12)
-        score_pos = (50,1)
-        for x in range(score_size[0]):
-            for y in range(score_size[1]):
-                pixels += [(score_pos[0]+x, score_pos[1]+y)]
-
-    #ensure that pixels are not out of scope
-    if concept != "bricks":
-        for pixel in pixels:
-            if (pixel[0] >= size[0] or pixel[0] <= 0) or (pixel[1] >= size[1] or pixel[1] <= 0):
-                pixels.remove(pixel)
-
-    return pixels
 
 def apply_interventions(concept, a_logits, values, tb, state_json, env, model, pixels, num_samples):
     global INTERVENTIONS
@@ -296,7 +179,7 @@ def intervention_move_ball(tb, state_json, env, model, pixels):
         obs, _, _, _ = env.step(0)
 
     #get logits and reset tb to state_json
-    actions, value, _, _, a_logits = model.step(obs)
+    actions, value, _, _, a_logits, _ = model.step(obs)
     tb.write_state_json(state_json) 
 
     return list(a_logits), value, move_distance
@@ -319,7 +202,7 @@ def intervention_ball_speed(tb, state_json, env, model, pixels):
         obs, _, _, _ = env.step(0)
 
     #get logits and reset tb to state_json
-    actions, value, _, _, a_logits = model.step(obs)
+    actions, value, _, _, a_logits, _ = model.step(obs)
     tb.write_state_json(state_json) 
 
     return list(a_logits), value, delta_velocity
@@ -345,7 +228,7 @@ def intervention_move_paddle(tb, state_json, env, model, pixels):
         obs, _, _, _ = env.step(0)
 
     #get logits and reset tb to state_json
-    actions, value, _, _, a_logits = model.step(obs)
+    actions, value, _, _, a_logits, _ = model.step(obs)
     tb.write_state_json(state_json) 
 
     return list(a_logits), value, move_distance
@@ -368,7 +251,7 @@ def intervention_flip_bricks(tb, state_json, env, model, pixels):
         obs, _, _, _ = env.step(0)
 
     #get logits and reset tb to state_json
-    actions, value, _, _, a_logits = model.step(obs)
+    actions, value, _, _, a_logits, _ = model.step(obs)
     tb.write_state_json(state_json) 
 
     return list(a_logits), value, num_dead_bricks
@@ -392,7 +275,7 @@ def intervention_remove_bricks(tb, state_json, env, model, pixels):
         obs, _, _, _ = env.step(0)
 
     #get logits and reset tb to state_json
-    actions, value, _, _, a_logits = model.step(obs)
+    actions, value, _, _, a_logits, _ = model.step(obs)
     tb.write_state_json(state_json) 
 
     return list(a_logits), value, remove_bricks_depth
@@ -413,7 +296,7 @@ def intervention_remove_rows(tb, state_json, env, model, pixels):
         obs, _, _, _ = env.step(0)
 
     #get logits and reset tb to state_json
-    actions, value, _, _, a_logits = model.step(obs)
+    actions, value, _, _, a_logits, _ = model.step(obs)
     tb.write_state_json(state_json) 
 
     return list(a_logits), value, remove_row
@@ -449,9 +332,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('-e', '--env_name', default='BreakoutToyboxNoFrameskip-v4', type=str, help='name of gym environment')
     parser.add_argument('-n', '--num_samples', default=10, type=int, help='number of samples to compute importance over')
+    parser.add_argument('-s', '--saliency_method', default="perturbation", help='saliency method to be used')
     parser.add_argument('-a', '--alg', help='algorithm used for training')
     parser.add_argument('-l', '--load_path', help='path to load the model from')
     parser.add_argument('-hp', '--history_path', help='path of history of a executed episode')
     args = parser.parse_args()
 
-    compute_importance(args.env_name, args.alg, args.load_path, args.history_path, args.num_samples)
+    compute_importance(args.env_name, args.alg, args.load_path, args.history_path, args.num_samples, saliency_method=args.saliency_method)
