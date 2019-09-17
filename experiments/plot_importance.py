@@ -45,6 +45,7 @@ Scatter plot of SM vs CF importance per intervention.
 '''
 def plot_impCorr_perIV(episode_importance, num_samples, imp_type="action", saliency_method='perturbation'):
     global GAME
+    COLORS = {'perturbation': 'C0', 'object': 'red', 'jacobian': 'purple'}
     concepts = CONCEPTS[GAME]
 
     SM_imp = {}
@@ -65,7 +66,7 @@ def plot_impCorr_perIV(episode_importance, num_samples, imp_type="action", salie
         CF_imp_concept = list(zip(*CF_imp[concept])) #separating by columns (ie. interventions)
         for i, IV in enumerate(interventions):
             plt.figure()
-            plt.scatter(SM_imp[concept], CF_imp_concept[i])
+            plt.scatter(SM_imp[concept], CF_imp_concept[i], color=COLORS[saliency_method])
             if imp_type=="action":
                 plt.ylabel('Euclidean Distance of Network Action Logits')
             else:
@@ -212,10 +213,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     GAME = args.game
+    load_path = args.load_path + '/num_samples_{}'.format(args.num_samples)
 
-    with open(args.load_path + "/episode_actionImp.pkl", 'rb') as f:
+    with open(load_path + "/episode_actionImp.pkl", 'rb') as f:
         episode_actionImp = pickle.load(f)
-    with open(args.load_path + "/episode_valueImp.pkl", 'rb') as f:
+    with open(load_path + "/episode_valueImp.pkl", 'rb') as f:
         episode_valueImp = pickle.load(f)
 
     plot_impCorr_perFrame(episode_actionImp, args.num_samples, saliency_method=args.saliency_method)
