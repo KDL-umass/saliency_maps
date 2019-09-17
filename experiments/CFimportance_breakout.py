@@ -1,6 +1,7 @@
 from saliency_maps.visualize_atari.make_movie import setUp
 from saliency_maps.visualize_atari.saliency import score_frame, saliency_on_atari_frame, occlude
 from saliency_maps.object_saliency.object_saliency import score_frame_by_pixels
+from saliency_maps.jacobian_saliency.jacobian_saliency import get_gradients
 from saliency_maps.utils.get_concept_pixels import get_concept_pixels_breakout
 from saliency_maps.experiments import CONCEPTS
 
@@ -30,8 +31,10 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
     save_dir = "./saliency_maps/experiments/results/CF_imp/"
     if saliency_method=='perturbation':
         save_dir += 'perturbation/'
-    else:
+    elif saliency_method=='object':
         save_dir += 'object/'
+    elif saliency_method=='jacobian':
+        save_dir += 'jacobian/'
     history_name = history_path.split("/")[-1][:-4]
     print(history_name)
 
@@ -67,6 +70,22 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
             plt.figure()
             plt.imshow(frame)
             plt.savefig(save_dir + history_name + '/num_samples_{}/frame{}.png'.format(num_samples, i))
+        elif saliency_method == 'jacobian':
+            jacobian_actor = get_gradients(model, history['ins'][i-1], mode='actor')
+            S_action = np.zeros((110, 84))
+            S_action[18:102, :] = jacobian_actor[0,:,:,3]**2
+            S_action = imresize(jacobian_actor[0,:,:,3]**2, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
+
+            jacobian_critic = get_gradients(model, history['ins'][i-1], mode='critic')
+            S_value = np.zeros((110, 84))
+            S_value[18:102, :] = jacobian_critic[0,:,:,3]**2
+            S_value = imresize(jacobian_critic[0,:,:,3]**2, size=[frame.shape[0],frame.shape[1]], interp='bilinear').astype(np.float32)
+
+            frame = saliency_on_atari_frame((jacobian_actor[0,:,:,3]**2).squeeze(), frame, fudge_factor=300, channel=2) #blue
+            frame = saliency_on_atari_frame((jacobian_critic[0,:,:,3]**2).squeeze(), frame, fudge_factor=50, channel=0) #blue
+            plt.figure()
+            plt.imshow(frame)
+            plt.savefig(save_dir + history_name + '/num_samples_{}/frame{}.png'.format(num_samples, i))
 
         #go through all objects and get object saliency and CF importance
         frame = history['color_frame'][i-1]
@@ -87,7 +106,7 @@ def compute_importance(env_name, alg, model_path, history_path, num_samples, den
 
             score_pixels_actions = []
             score_pixels_values = []
-            if saliency_method == 'perturbation':
+            if saliency_method == 'perturbation' or saliency_method == 'jacobian':
                 for pixels in concept_pixels:
                     score_pixels_actions.append(S_action[pixels[1]][pixels[0]])
                     score_pixels_values.append(S_value[pixels[1]][pixels[0]])
