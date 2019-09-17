@@ -10,8 +10,8 @@ import matplotlib.animation as manimation
 
 from saliency_maps.visualize_atari.make_movie import setUp
 
-def run_through_model(model, obs, mode='actor'):
-    _, value, _, _, a_logits, grads = model.step(obs)
+def get_gradients(model, obs, mode='actor'):
+    _, value, _, _, a_logits, grads = model.step(obs, mode=mode)
     return grads
 
 def saliency_on_atari_frame(saliency, atari, fudge_factor, channel=2, sigma=0):
@@ -33,7 +33,7 @@ def saliency_on_atari_frame(saliency, atari, fudge_factor, channel=2, sigma=0):
 def get_env_meta(env_name):
     meta = {}
     if env_name=="BreakoutToyboxNoFrameskip-v4":
-        meta['critic_ff'] = 600 ; meta['actor_ff'] = 300
+        meta['critic_ff'] = 50 ; meta['actor_ff'] = 300
     elif env_name=="AmidarToyboxNoFrameskip-v4":
         meta['critic_ff'] = 800 ; meta['actor_ff'] = 800
     else:
@@ -69,8 +69,11 @@ def make_movie(alg, env_name, num_frames, prefix, load_history_path, load_model_
                 # get input that get color_frame
                 obs = history['ins'][ix-1]
 
-                jacobian = run_through_model(model, obs)
-                frame = saliency_on_atari_frame((jacobian[0,:,:,3]**2).squeeze(), frame, fudge_factor=meta['actor_ff'], channel=2) #blue
+                jacobian_actor = get_gradients(model, obs, mode='actor')
+                jacobian_critic = get_gradients(model, obs, mode='critic')
+
+                frame = saliency_on_atari_frame((jacobian_actor[0,:,:,3]**2).squeeze(), frame, fudge_factor=meta['actor_ff'], channel=2) #blue
+                frame = saliency_on_atari_frame((jacobian_critic[0,:,:,3]**2).squeeze(), frame, fudge_factor=meta['critic_ff'], channel=0) #blue
 
                 plt.imshow(frame) ; plt.title(env_name.lower(), fontsize=15)
                 writer.grab_frame() ; f.clear()
@@ -81,5 +84,5 @@ def make_movie(alg, env_name, num_frames, prefix, load_history_path, load_model_
 
 
 # make_movie("a2c", "BreakoutToyboxNoFrameskip-v4", 150, "jacobian_default", "./saliency_maps/movies/a2c/BreakoutToyboxNoFrameskip-v4/perturbation/default-150-breakouttoyboxnoframeskip-v4-6.pkl", "./models/BreakoutToyboxNoFrameskip-v4/breakout4e7_a2c.model")
-make_movie("a2c", "AmidarToyboxNoFrameskip-v4", 250, "jacobian_default", "./saliency_maps/movies/a2c/AmidarToyboxNoFrameskip-v4/perturbation/default-250-amidartoyboxnoframeskip-v4-2.pkl", "./models/AmidarToyboxNoFrameskip-v4/amidar4e7_a2c.model")
+# make_movie("a2c", "AmidarToyboxNoFrameskip-v4", 250, "jacobian_default", "./saliency_maps/movies/a2c/AmidarToyboxNoFrameskip-v4/perturbation/default-250-amidartoyboxnoframeskip-v4-2.pkl", "./models/AmidarToyboxNoFrameskip-v4/amidar4e7_a2c.model")
 
