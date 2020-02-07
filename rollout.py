@@ -214,6 +214,22 @@ def single_intervention_symmetric_brick(model, env, rollout_history, max_ep_len=
         for brick_index in bricks_to_flip:
             intervention.set_brick(brick_index, alive=False)
 
+        #move ball
+        ball_pos = intervention.get_ball_position()
+        print("old ball pos: ", ball_pos)
+        ball_pos['x'] = (240-12) - ball_pos['x']
+        print("new ball pos: ", ball_pos)
+        intervention.set_ball_position(ball_pos)
+        ball_pos_post = intervention.get_ball_position()
+        assert ball_pos_post['x'] == ball_pos['x']
+
+        #move paddle
+        pos = intervention.get_paddle_position()
+        print("old paddle pos: ", pos)
+        pos['x'] = (240-12) - pos['x']
+        print("new paddle pos: ", pos)
+        intervention.set_paddle_position(pos)
+
     #forward simulate 3 steps with no-op action
     for i in range(3):
         obs, _, _, _ = env.step(0)
@@ -244,7 +260,8 @@ def single_intervention_symmetric_brick(model, env, rollout_history, max_ep_len=
 
     return history
 
-def single_intervention_shift_bricks(model, env, rollout_history, max_ep_len=3e3, intervene_step=20, shift_dist=1):
+def single_intervention_shift_bricks(model, env, rollout_history, max_ep_len=3e3, intervene_step=20, shift_dist=1, 
+                                        move_ball=False, move_paddle=False):
     history = {'ins': [], 'a_logits': [], 'values': [], 'actions': [], 'rewards': [], 'color_frame': [], 'state_json': []}
     episode_length, epr, done = 0, 0, False
 
@@ -316,6 +333,26 @@ def single_intervention_shift_bricks(model, env, rollout_history, max_ep_len=3e3
         #print(bricks_to_flip)
         for brick_index in bricks_to_flip:
             intervention.set_brick(brick_index, alive=False)
+
+        #move ball to left side of board
+        if move_ball:
+            move_distance = 70
+            ball_pos = intervention.get_ball_position()
+            print("old ball pos: ", ball_pos)
+            ball_pos['x'] = ball_pos['x'] - move_distance
+            ball_pos['y'] = ball_pos['y'] - move_distance
+            print("new ball pos: ", ball_pos)
+            intervention.set_ball_position(ball_pos)
+            ball_pos_post = intervention.get_ball_position()
+            assert ball_pos_post['x'] == ball_pos['x']
+
+        #move paddle to left side of board
+        if move_paddle:
+            pos = intervention.get_paddle_position()
+            print("old paddle pos: ", pos)
+            pos['x'] = pos['x'] - move_distance
+            print("new paddle pos: ", pos)
+            intervention.set_paddle_position(pos)
 
     #forward simulate 3 steps with no-op action
     for i in range(3):
@@ -747,7 +784,7 @@ def single_intervention_move_enemy_back(model, env, rollout_history, enemy_id, i
     episode_length, epr, done = 0, 0, False
 
     #pick random distance to move
-    move_step = random.randint(6,16)
+    move_step = random.randint(6,10)
 
     #logger.log("Running trained model")
     print("Running trained model")
@@ -758,7 +795,6 @@ def single_intervention_move_enemy_back(model, env, rollout_history, enemy_id, i
     #start new game and set start state to the same state as original game
     tb.new_game()
     tb.write_state_json(rollout_history['state_json'][0])
-    print(rollout_history['state_json'][0]['enemies'])
     
     #add start state to history
     state_json = tb.state_to_json()
@@ -799,6 +835,8 @@ def single_intervention_move_enemy_back(model, env, rollout_history, enemy_id, i
     print("old next step: ", state_json['enemies'][enemy_id]['ai']['EnemyLookupAI']['next'])
     
     next_step = state_json['enemies'][enemy_id]['ai']['EnemyLookupAI']['next'] - move_step
+    if next_step < 0:
+        next_step = 0
     state_json['enemies'][enemy_id]['ai']['EnemyLookupAI']['next'] = next_step
 
     print("new next step: ", state_json['enemies'][enemy_id]['ai']['EnemyLookupAI']['next'])
@@ -810,6 +848,7 @@ def single_intervention_move_enemy_back(model, env, rollout_history, enemy_id, i
 
     #forward simulate for remainder of episode
     while not done:
+        episode_length += 1
         actions, value, _, _, a_logits, _ = model.step(obs)
         num_lives = turtle.ale.lives()
         obs, reward, done, info = env.step(actions)
