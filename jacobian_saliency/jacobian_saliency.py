@@ -40,7 +40,7 @@ def get_env_meta(env_name):
         print('environment "{}" not supported'.format(env_name))
     return meta
 
-def make_movie(alg, env_name, num_frames, prefix, load_history_path, load_model_path, resolution=75, first_frame=1):
+def make_movie(alg, env_name, load_history_path, load_model_path, prefix='jacobian_default', num_frames=150, resolution=75, first_frame=1):
     # set up env and model
     env, model = setUp(env_name, alg, load_model_path)
     ob_space = env.observation_space
