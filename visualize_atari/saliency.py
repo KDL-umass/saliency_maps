@@ -16,12 +16,15 @@ def run_through_model(model, obs, mode='actor'):
     _, value, _, _, a_logits, _ = model.step(obs)
     return value if mode == 'critic' else a_logits
 
-def score_frame(model, history, ix, r, d, interp_func, mode='actor'):
+def score_frame(model, history, ix, r, d, interp_func, mode='actor', inp=None):
     # r: radius of blur
     # d: density of scores (if d==1, then get a score for every pixel...
     #    if d==2 then every other, which is 25% of total pixels for a 2D image)
     assert mode in ['actor', 'critic'], 'mode must be either "actor" or "critic"'
-    orig_obs = history['ins'][ix]
+    if inp is None:
+        orig_obs = history['ins'][ix]
+    else:
+        orig_obs = inp
     L = run_through_model(model, orig_obs, mode=mode) #without mask
 
     scores = np.zeros((int(84/d)+1,int(84/d)+1)) # saliency scores S(t,i,j)

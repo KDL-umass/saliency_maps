@@ -67,12 +67,14 @@ def plot_impCorr_perIV(episode_importance, num_samples, imp_type="action", salie
         for i, IV in enumerate(interventions):
             plt.figure()
             plt.scatter(SM_imp[concept], CF_imp_concept[i], color=COLORS[saliency_method])
-            if imp_type=="action":
-                plt.ylabel('Euclidean Distance of Network Action Logits')
-            else:
-                plt.ylabel('Euclidean Distance of Network Value')
-            plt.xlabel('Saliency Score')
-            plt.title('SM Importance VS CF Importance for {}'.format(IV))
+            plt.ylim(0, 30)
+            # plt.yticks([])
+            # if imp_type=="action":
+            #     plt.ylabel('Euclidean Distance of Network Action Logits')
+            # else:
+            #     plt.ylabel('Euclidean Distance of Network Value')
+            # plt.xlabel('Saliency Score')
+            # plt.title('SM Importance VS CF Importance for {}'.format(IV))
             plt.savefig(SAVE_DIR + 'CF_imp/{}/default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}/IV{}Imp_{}.png'.format(saliency_method, num_samples, imp_type, IV))
 
 '''
@@ -206,14 +208,13 @@ def duplicates(lst, item):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=None)
-    parser.add_argument('-l', '--load_path', help='path to load the pickle file containing importance information from')
     parser.add_argument('-n', '--num_samples', default=10, type=int, help='number of samples to compute importance over')
     parser.add_argument('-g', '--game', default="Breakout", help='game we are computing the plots for')
     parser.add_argument('-s', '--saliency_method', default="perturbation", help='saliency method to be used')
     args = parser.parse_args()
 
     GAME = args.game
-    load_path = args.load_path + '/num_samples_{}'.format(args.num_samples)
+    load_path = './saliency_maps/experiments/results/CF_imp/{}/default-150-breakouttoyboxnoframeskip-v4-56/num_samples_{}'.format(args.saliency_method, args.num_samples)
 
     with open(load_path + "/episode_actionImp.pkl", 'rb') as f:
         episode_actionImp = pickle.load(f)

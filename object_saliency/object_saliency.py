@@ -99,8 +99,11 @@ def score_frame(env_name, env, model, history, ix, obj_pixels, mode='actor'):
 
     return scores, obj_pixels
 
-def score_frame_by_pixels(model, history, ix, pixels, mode='actor'):
-    orig_obs = history['ins'][ix]
+def score_frame_by_pixels(model, history, ix, pixels, inp=None, mode='actor'):
+    if inp is None:
+        orig_obs = history['ins'][ix]
+    else:
+        orig_obs = inp
     q = run_through_model(model, orig_obs, mode=mode) #without masking objects
 
     #mask and calculate score

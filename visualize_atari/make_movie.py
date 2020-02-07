@@ -11,7 +11,8 @@ import gym, os, sys, time, argparse, pickle
 
 def make_movie(env_name, alg, env, model, load_path, num_frames=20, first_frame=0, resolution=75, save_dir=None, \
                 density=5, radius=5, prefix='default', IVmoveball=False, IVsymbricks=False, IVmodifyScore=False, \
-                IVmultModifyScores=False, IVnonChangingScores=False, IVdecrementScore=False, IVmoveEnemies=False):
+                IVmultModifyScores=False, IVnonChangingScores=False, IVdecrementScore=False, IVmoveEnemies=False, \
+                IVmoveEnemiesBack=False, IVshiftBricks=False):
     print('making movie using model at ', load_path)
     # set up env and model
     if env is None or model is None:
@@ -49,6 +50,9 @@ def make_movie(env_name, alg, env, model, load_path, num_frames=20, first_frame=
     elif IVsymbricks:
         make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
                                 save_dir, density, radius, IVsymbricks=True)
+    elif IVshiftBricks:
+        make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
+                                save_dir, density, radius, IVshiftBricks=True)
     elif IVnonChangingScores:
         make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
                                 save_dir, density, radius, IVnonChangingScores=True)
@@ -58,13 +62,16 @@ def make_movie(env_name, alg, env, model, load_path, num_frames=20, first_frame=
     elif IVmoveEnemies:
         make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
                                 save_dir, density, radius, IVmoveEnemies=True)
+    elif IVmoveEnemiesBack:
+        make_intervention_movie(env_name, alg, env, model, load_path, history_title, max_ep_len, num_frames, first_frame, resolution, \
+                                save_dir, density, radius, IVmoveEnemiesBack=True)
 
     return env, model
 
 def make_intervention_movie(env_name, alg, env, model, load_path, history_file, max_ep_len=3e3, num_frames=20, \
                             first_frame=0, resolution=75, save_dir=None, density=5, radius=5, IVmoveball=False, IVsymbricks=False, \
                             IVmodifyScore=False, IVmultModifyScores=False, IVnonChangingScores=False, IVdecrementScore=False, \
-                            IVmoveEnemies=False):
+                            IVmoveEnemies=False, IVmoveEnemiesBack=False, IVshiftBricks=False):
 
     if env is None or model is None:
         env, model = setUp(env_name, alg, load_path)
@@ -91,6 +98,17 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
         default_history = pickle.load(default_history_file)
         history = single_intervention_symmetric_brick(model, env, default_history, max_ep_len=max_ep_len, intervene_step=120)
 
+    if IVshiftBricks:
+        print('making movie with IVshiftBricks intervention using model at ', load_path)
+        prefix = "IVshiftBricks"
+        if save_dir is None:
+            save_dir = "./saliency_maps/movies/{}/{}/perturbation/".format(alg, env_name)
+
+        # get interventional history
+        default_history_file = open(save_dir + history_file, 'rb') 
+        default_history = pickle.load(default_history_file)
+        history = single_intervention_shift_bricks(model, env, default_history, max_ep_len=max_ep_len, intervene_step=120, shift_dist=2)
+
     if IVmodifyScore:
         print('making movie with IVmodifyScore intervention using model at ', load_path)
         prefix = "IVmodifyScore"
@@ -104,14 +122,14 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
 
     if IVmultModifyScores:
         print('making movie with IVmultModifyScores intervention using model at ', load_path)
-        prefix = "IVmultModifyScoresRand"
+        prefix = "IVmultModifyScores"
         if save_dir is None:
             save_dir = "./saliency_maps/movies/{}/{}/perturbation/".format(alg, env_name)
 
         # get interventional history
         default_history_file = open(save_dir + history_file, 'rb') 
         default_history = pickle.load(default_history_file)
-        history = multiple_intervention_modify_score(model, env, default_history, max_ep_len=max_ep_len, random_score=True)
+        history = multiple_intervention_modify_score(model, env, default_history, max_ep_len=max_ep_len, random_score=False)
 
     if IVnonChangingScores:
         print('making movie with IVnonChangingScores intervention using model at ', load_path)
@@ -133,7 +151,7 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
         # get interventional history
         default_history_file = open(save_dir + history_file, 'rb') 
         default_history = pickle.load(default_history_file)
-        history = multiple_intervention_decrement_score(model, env, default_history, max_ep_len=200)
+        history = multiple_intervention_decrement_score(model, env, default_history, max_ep_len=max_ep_len)
 
     if IVmoveEnemies:
         print('making movie with IVmoveEnemies intervention using model at ', load_path)
@@ -145,6 +163,17 @@ def make_intervention_movie(env_name, alg, env, model, load_path, history_file, 
         default_history_file = open(save_dir + history_file, 'rb') 
         default_history = pickle.load(default_history_file)
         history = multiple_intervention_move_enemies(model, env, default_history)
+
+    if IVmoveEnemiesBack:
+        print('making movie with IVmoveEnemiesBack intervention using model at ', load_path)
+        prefix = "IVmoveEnemiesBack"
+        if save_dir is None:
+            save_dir = "./saliency_maps/movies/{}/{}/perturbation/".format(alg, env_name)
+
+        # get interventional history
+        default_history_file = open(save_dir + history_file, 'rb') 
+        default_history = pickle.load(default_history_file)
+        history = single_intervention_move_enemy_back(model, env, default_history, enemy_id=4, intervening_frame=240)
 
     # generate file names
     movie_title = "{}-{}-{}-{}.mp4".format(prefix, num_frames, env_name.lower(), history_file.split(".pkl")[0].split("-")[-1])
@@ -187,6 +216,7 @@ def _make_movie(env_name, model, movie_title, history, num_frames=20, first_fram
                 frame = saliency_on_atari_frame(critic_saliency, frame, fudge_factor=meta['critic_ff'], channel=0) #red
 
                 plt.imshow(frame) ; plt.title(env_name.lower(), fontsize=15)
+                # plt.savefig('./saliency_maps/experiments/results/breakout_flipBrick_ex/frame{}_bp.png'.format(i))
                 writer.grab_frame() ; f.clear()
                 
                 tstr = time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start))
@@ -194,7 +224,7 @@ def _make_movie(env_name, model, movie_title, history, num_frames=20, first_fram
     print('\nfinished.')
 
 def update_filenames(directory, movie_file, history_file):
-    if os.path.isfile(directory + movie_file):
+    if os.path.isfile(directory + history_file):
         count = 1
         while True:
             count += 1
@@ -231,7 +261,7 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--alg', help='algorithm used for training')
     parser.add_argument('-l', '--load_path', help='path to load the model from')
     parser.add_argument('-d', '--density', default=5, type=int, help='density of grid of gaussian blurs')
-    parser.add_argument('-r', '--radius', default=5, type=int, help='radius of gaussian blur')
+    parser.add_argument('-r', '--radius', default=2, type=int, help='radius of gaussian blur')
     parser.add_argument('-f', '--num_frames', default=20, type=int, help='number of frames in movie')
     parser.add_argument('-i', '--first_frame', default=0, type=int, help='index of first frame')
     parser.add_argument('-dpi', '--resolution', default=75, type=int, help='resolution (dpi)')
@@ -246,6 +276,8 @@ if __name__ == '__main__':
     parser.add_argument('-incs', '--IVnonChangingScores', default=False, type=bool, help='intervention non changing scores in amidar')
     parser.add_argument('-imds', '--IVdecrementScore', default=False, type=bool, help='intervention decrement scores at each timestep in amidar')
     parser.add_argument('-ime', '--IVmoveEnemies', default=False, type=bool, help='intervention move enemy on same protocol at multiple steps in amidar')
+    parser.add_argument('-imeb', '--IVmoveEnemiesBack', default=False, type=bool, help='intervention move enemy backwards on same protocol at single timestep')
+    parser.add_argument('-isb', '--IVshiftBricks', default=False, type=bool, help='intervention shift bricks at single timestep')
     args = parser.parse_args()
 
     env, model = None, None
@@ -253,10 +285,11 @@ if __name__ == '__main__':
         if args.history_file is None:
             env, model = make_movie(args.env_name, args.alg, env, model, args.load_path, args.num_frames, args.first_frame, args.resolution,
                 args.save_dir, args.density, args.radius, args.prefix, args.IVmoveball, args.IVsymbricks, 
-                args.IVmodifyScore, args.IVmultModifyScores, args.IVnonChangingScores, args.IVdecrementScore)
+                args.IVmodifyScore, args.IVmultModifyScores, args.IVnonChangingScores, args.IVdecrementScore, args.IVmoveEnemies, 
+                args.IVmoveEnemiesBack, args.IVshiftBricks)
         else:
             env, model = make_intervention_movie(args.env_name, args.alg, env, model, args.load_path, args.history_file, num_frames=args.num_frames, 
                 first_frame=args.first_frame, resolution=args.resolution, save_dir=args.save_dir, density=args.density, 
                 radius=args.radius, IVmoveball=args.IVmoveball, IVsymbricks=args.IVsymbricks, IVmodifyScore=args.IVmodifyScore, 
                 IVmultModifyScores=args.IVmultModifyScores, IVnonChangingScores=args.IVnonChangingScores, IVdecrementScore=args.IVdecrementScore,
-                IVmoveEnemies=args.IVmoveEnemies)
+                IVmoveEnemies=args.IVmoveEnemies, IVmoveEnemiesBack=args.IVmoveEnemiesBack, IVshiftBricks=args.IVshiftBricks)
