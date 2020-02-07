@@ -1,3 +1,4 @@
+from toybox.interventions.amidar import *
 
 def get_concept_pixels_breakout(concept, state_json, size):
     pixels = []
@@ -180,3 +181,12 @@ def get_concept_pixels_amidar(concept, state_json, size, tb):
                 pixels += [(x,y)]
 
     return pixels
+
+def world_to_pixels(world_pos, tb):
+    tile_pos = (0, 0)
+    with AmidarIntervention(tb) as intervention:
+        tile_pos = intervention.world_to_tile(world_pos[0], world_pos[1])
+    pixel_pos = (tile_pos['tx']*4 + 16, tile_pos['ty']*5 + 37)
+
+    return pixel_pos
+    

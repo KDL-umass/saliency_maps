@@ -187,14 +187,6 @@ def intervention_decrement_score(tb, state_json, env, model, pixels):
 
     return list(a_logits), move_distance
 
-def world_to_pixels(world_pos, tb):
-    tile_pos = (0, 0)
-    with AmidarIntervention(tb) as intervention:
-        tile_pos = intervention.world_to_tile(world_pos[0], world_pos[1])
-    pixel_pos = (tile_pos['tx']*4 + 16, tile_pos['ty']*5 + 37)
-
-    return pixel_pos
-
 #BAD CODE PRACTICE!!
 INTERVENTIONS = {"score": [intervention_modify_scores, intervention_modify_scores_rand, intervention_nonchanging_scores, intervention_decrement_score]}
 
