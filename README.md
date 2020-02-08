@@ -15,18 +15,18 @@ Please direct all queries to Akanksha Atrey (aatrey at cs dot umass dot edu) or 
 
 ## About
 
-**Abstract:** Saliency maps are often used to suggest explanations of the behavior of deep rein- forcement learning (RL) agents. However, the explanations derived from saliency maps are often unfalsifiable and can be highly subjective. We introduce an empirical approach grounded in counterfactual reasoning to test the hypotheses generated from saliency maps and show that explanations suggested by saliency maps are often not supported by experiments. Our experiments suggest that saliency maps are best viewed as an exploratory tool rather than an explanatory tool.
+**Abstract:** Saliency maps are often used to suggest explanations of the behavior of deep reinforcement learning (RL) agents. However, the explanations derived from saliency maps are often unfalsifiable and can be highly subjective. We introduce an empirical approach grounded in counterfactual reasoning to test the hypotheses generated from saliency maps and show that explanations suggested by saliency maps are often not supported by experiments. Our experiments suggest that saliency maps are best viewed as an exploratory tool rather than an explanatory tool.
 
 ## Setup
 
 ### Python
-This repository requires python3 (>=3.5).
+This repository requires Python 3 (>=3.5).
 
 ### Toybox Repository
-We use [Toybox](https://arxiv.org/abs/1812.02850), a set of fully parameterized [implementation](https://github.com/jjfiv/toybox) of Atari games, to generate interventional data under counterfactual conditions. Clone the Toybox repository and follow the setup instructions. This repository should reside in the `toybox/ctoybox` folder.
+We use [Toybox](https://arxiv.org/abs/1812.02850), a set of fully parameterized implementation of Atari games, to generate interventional data under counterfactual conditions. Clone the [Toybox repository](https://github.com/jjfiv/toybox) and follow the setup instructions. This repository should reside in the `toybox/ctoybox` folder within the Toybox repository.
 
 ### Baselines Repository
-All agents used in this work are trained using the OpenAI's baselines implementation. Clone [this version](https://github.com/akanksha95/baselines.git) of the baselines repo in the same directory as this repo and follow the setup instructions. This version of baselines is a fork of the original baselines repository with code changes to accomodate building different saliency maps.
+All agents used in this work are trained using the OpenAI's baselines implementation. Clone [this version](https://github.com/akanksha95/baselines.git) of the baselines repository in the same directory as this repository and follow the setup instructions (in the `toybox/ctoybox` folder). This version of baselines is a fork of the original baselines repository with code changes to accomodate building different saliency maps.
 
 ## Training Deep RL Agents on Toybox
 We use the [A2C algorithm](https://towardsdatascience.com/understanding-actor-critic-methods-931b97b6df3f) for all our experiments. 
@@ -41,7 +41,7 @@ To train a deep RL model on Breakout using the A2C algorithm, execute the follow
 
 ## Building Saliency Maps
 
-The implementation follows that all three types of saliency videos are created for a single episode. The perturbation saliency video must be created first before creating the object and Jacobian saliency maps. When the perturbation saliency video is created, it will create an associated pickle file with the actions chosen by the agent. This pickle file will be used when building object and Jacobian saliency videos to avoid discrepancies in agent behavior.
+The implementation follows that all three types of saliency videos are created for a single episode. The perturbation saliency video must be created first before creating the object and Jacobian saliency maps. When the perturbation saliency video is created, it simultaneously creates an associated pickle file with the actions chosen by the agent. This pickle file will be used when creating object and Jacobian saliency videos to avoid discrepancies in agent behavior.
 
 To build a perturbation saliency video on a Breakout agent, execute the following command from the `toybox/ctoybox` directory:
 
@@ -57,7 +57,7 @@ To build a Jacobian saliency video on a Breakout agent, execute the following co
 
 ### Interventions
 
-All interventions can be found in `saliency_maps/rollout.py`. This functions are accessible as boolean parameters when building the perturbation saliency maps based on input parameters. Note, these functions can only be called once a default agent has been run and a corresponding pickle file has been generated. The set of interventions is not exhaustive. Users can build their own interventions in the same python file and add corresponding edits in the `saliency_maps/visualize_atari/make_movie()` file.
+All interventions can be found in `saliency_maps/rollout.py`. These functions are accessible as boolean parameters when building perturbation saliency maps based on input parameters. Note, these functions can only be called once a default agent has been run and a corresponding pickle file has been generated. The set of interventions is not exhaustive. Users can build their own interventions in the same python file and add corresponding edits in the `saliency_maps/visualize_atari/make_movie()` file.
 
 The generic command to create videos of interventions is: 
 
