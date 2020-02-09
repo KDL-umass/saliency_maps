@@ -17,6 +17,8 @@ from scipy.stats import pearsonr
 import matplotlib 
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+# matplotlib.rcParams.update({'font.size': 14})
+# plt.rcParams["font.family"] = "Times New Roman"
 
 def plot(reward, reward_std, saliency, saliency_std, agg='mean'):
     labels = ["original", "intermittent_reset", "random_varying", "fixed", "decremented"]
@@ -25,10 +27,10 @@ def plot(reward, reward_std, saliency, saliency_std, agg='mean'):
     for i,r in enumerate(reward):
         plt.plot(range(len(r)), r, label=labels[i])
         plt.fill_between(range(len(r)), np.subtract(r, reward_std[i]), np.add(r, reward_std[i]), alpha=0.2)
-    plt.xlabel("Time")
-    plt.ylabel("Reward")
-    plt.title("Reward Over Time")
-    plt.legend()
+    plt.xlabel("Time", fontsize=16)
+    plt.ylabel("Reward", fontsize=16)
+    # plt.title("Reward Over Time")
+    # plt.legend()
     plt.savefig(SAVE_DIR + 'amidar_rewards_50s_{}.png'.format(agg))
     plt.show()
 
@@ -37,29 +39,30 @@ def plot(reward, reward_std, saliency, saliency_std, agg='mean'):
     # for i in [0,3,2,1,4]:
         plt.plot(range(len(s)), s, label=labels[i])
         # plt.fill_between(range(len(s)), np.subtract(s, saliency_std[i]), np.add(s, saliency_std[i]), alpha=0.2)
-    plt.xlabel("Time")
-    plt.ylabel("Saliency on Score")
-    # plt.ylim(0, 20)
-    plt.title("Saliency on Score Over Time")
-    plt.legend()
+    plt.xlabel("Time", fontsize=16)
+    plt.ylabel("Saliency on Score", fontsize=16)
+    # plt.ylim((0, 20))
+    # plt.title("Saliency on Score Over Time")
+    plt.legend(fontsize=10)
     plt.savefig(SAVE_DIR + 'amidar_scoreSaliency_50s_{}.png'.format(agg))
     # plt.show()
 
 def plot_corr_reward_saliency(reward, saliency):
     labels = ["original", "intermittent_reset", "random_varying", "fixed", "decremented"]
+    colors = ['C0', 'C1', 'C2', 'C3', 'C4']
     plt.figure()
     print(len(reward), len(saliency))
     for i,r in enumerate(reward):
         # print(r, len(saliency[i]))
         if i == 0:
             continue
-        plt.scatter(reward[0] - r, saliency[0] - saliency[i], label=labels[i], s=4)
+        plt.scatter(reward[0] - r, saliency[0] - saliency[i], label=labels[i], color=colors[i], s=4)
         corr_i = pearsonr(reward[0] - r, saliency[0] - saliency[i])
         print(labels[i], ": ", corr_i)
-    plt.xlabel("Difference in Intervention Reward from Original")
-    plt.ylabel("Difference in Intervention Saliency from Original")
-    plt.title("Correlation Between the Intervention Differences in Reward and Saliency")
-    plt.legend()
+    plt.xlabel("Reward Difference from Original", fontsize=16)
+    plt.ylabel("Saliency Difference from Original", fontsize=16)
+    # plt.title("Correlation Between the Intervention Differences in Reward and Saliency")
+    # plt.legend()
     plt.savefig(SAVE_DIR + 'amidar_corr_50s.png')
     plt.show()
 
@@ -71,7 +74,7 @@ def plot_corr_rewards(reward_mean, agg='mean'):
         plt.scatter(reward_mean[0], reward_mean[i])
         plt.xlabel("Reward {}".format(labels[i]))
         plt.ylabel("Reward Original")
-        plt.title("Correlation Between Original Rewards and {} Rewards".format(labels[i]))
+        # plt.title("Correlation Between Original Rewards and {} Rewards".format(labels[i]))
         plt.savefig(SAVE_DIR + 'amidar_Rcorr_{}_50s_{}.png'.format(labels[i], agg))
 
 def plot_corr_rewards_raw(histories):
@@ -91,7 +94,7 @@ def plot_corr_rewards_raw(histories):
             plt.scatter(orig_history[j]['rewards'][:min_size], history['rewards'][:min_size])
         plt.xlabel("Reward {}".format(labels[i]))
         plt.ylabel("Reward Original")
-        plt.title("Correlation Between Original Rewards and {} Rewards".format(labels[i]))
+        # plt.title("Correlation Between Original Rewards and {} Rewards".format(labels[i]))
         plt.savefig(SAVE_DIR + 'amidar_Rcorr_{}_50s_raw.png'.format(labels[i]))
 
 def get_rewards(history, num_frames=150, agg='mean'):
@@ -237,7 +240,7 @@ if __name__ == '__main__':
     # print(saliency)
     # print(rewards)
 
-    # plot(rewards, rewards_std, saliency, saliency_std, agg=args.aggregation)
+    plot(rewards, rewards_std, saliency, saliency_std, agg=args.aggregation)
     # plot_corr_rewards(rewards, agg=args.aggregation)
     # plot_corr_rewards_raw(histories)
     plot_corr_reward_saliency(rewards, saliency)
