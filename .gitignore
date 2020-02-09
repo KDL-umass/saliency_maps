@@ -7,3 +7,5 @@ __pycache__
 experiments/results/*
 movies/*
 scripts/output
+experiments/CFimportance_amidar.py
+experiments/CFimportance_breakout.py

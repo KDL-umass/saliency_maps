@@ -16,8 +16,6 @@ import matplotlib.animation as manimation
 
 from saliency_maps.visualize_atari.make_movie import setUp
 from saliency_maps.experiments import CONCEPTS
-# from saliency_maps.experiments.CFimportance_amidar import get_concept_pixels as get_concept_pixels_amidar
-# from saliency_maps.experiments.CFimportance_breakout import get_concept_pixels as get_concept_pixels_breakout
 from saliency_maps.utils.get_concept_pixels import get_concept_pixels_breakout, get_concept_pixels_amidar
 
 def get_objPixels(env_objects, object_template, env_name, env, frame, state_json):
