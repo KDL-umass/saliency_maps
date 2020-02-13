@@ -2,18 +2,18 @@
 
 This repository contains code from experiments discussed in our ICLR 2020 paper [Exploratory Not Explanatory: Counterfactual Analysis of Saliency Maps for Deep RL](https://openreview.net/forum?id=rkl3m1BFDB).
 
-It contains resources for generating saliency maps for deep reinforcement learning (RL) models and includes experiments to empirically examine the causal relationships between saliency and agent behavior. It also provides implementations of three types of saliency maps used in RL: (1) [Jacobian](https://arxiv.org/abs/1511.06581), (2) [perturbation-based](https://arxiv.org/abs/1711.00138), and (3) [object-based](https://arxiv.org/abs/1809.06061).
+It includes resources for generating saliency maps for deep reinforcement learning (RL) models and additionally contains experiments to empirically examine the causal relationships between saliency and agent behavior. It also provides implementations of three types of saliency maps used in RL: (1) [Jacobian](https://arxiv.org/abs/1511.06581), (2) [perturbation-based](https://arxiv.org/abs/1711.00138), and (3) [object-based](https://arxiv.org/abs/1809.06061).
 
 If you use this code or are inspired by our methodology, please cite our [ICLR paper](https://openreview.net/pdf?id=rkl3m1BFDB):
-
+```
 @inproceedings{atrey2020exploratory,\
 &nbsp; &nbsp; title={{Exploratory Not Explanatory: Counterfactual Analysis of Saliency Maps for Deep RL}},\
 &nbsp; &nbsp; author={Atrey, Akanksha and Clary, Kaleigh and Jensen, David},\
 &nbsp; &nbsp; booktitle={{International Conference on Learning Representations (ICLR)}},\
 &nbsp; &nbsp; year={2020}\
 }
-
-Please direct all queries to Akanksha Atrey (aatrey at cs dot umass dot edu) or open an issue in this repository.
+```
+Please direct all queries to **Akanksha Atrey** (aatrey at cs dot umass dot edu) or [open an issue in this repository](https://github.com/KDL-umass/saliency_maps/issues/new).
 
 ## About
 
