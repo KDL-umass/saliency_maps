@@ -7,10 +7,10 @@ It includes resources for generating saliency maps for deep reinforcement learni
 If you use this code or are inspired by our methodology, please cite our [ICLR paper](https://openreview.net/pdf?id=rkl3m1BFDB):
 ```
 @inproceedings{atrey2020exploratory,\
-&nbsp; &nbsp; title={{Exploratory Not Explanatory: Counterfactual Analysis of Saliency Maps for Deep RL}},\
-&nbsp; &nbsp; author={Atrey, Akanksha and Clary, Kaleigh and Jensen, David},\
-&nbsp; &nbsp; booktitle={{International Conference on Learning Representations (ICLR)}},\
-&nbsp; &nbsp; year={2020}\
+  title={{Exploratory Not Explanatory: Counterfactual Analysis of Saliency Maps for Deep RL}},\
+  author={Atrey, Akanksha and Clary, Kaleigh and Jensen, David},\
+  booktitle={{International Conference on Learning Representations (ICLR)}},\
+  year={2020}\
 }
 ```
 Please direct all queries to **Akanksha Atrey** (aatrey at cs dot umass dot edu) or [open an issue in this repository](https://github.com/KDL-umass/saliency_maps/issues/new).
