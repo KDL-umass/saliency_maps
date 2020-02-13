@@ -1,6 +1,8 @@
 # Saliency-Maps
 
-This repository builds and experiments on hypotheses generated from saliency maps for deep reinforcement learning (RL) models trained using OpenAI's baselines repository. It contains implementations of three types of saliency maps in RL: (1) [Jacobian](https://arxiv.org/abs/1511.06581), (2) [perturbation-based](https://arxiv.org/abs/1711.00138), and (3) [object-based](https://arxiv.org/abs/1809.06061).
+This repository contains code from experiments discussed in our ICLR 2020 paper [Exploratory Not Explanatory: Counterfactual Analysis of Saliency Maps for Deep RL](https://openreview.net/forum?id=rkl3m1BFDB).
+
+It contains resources for generating saliency maps for deep reinforcement learning (RL) models and includes experiments to empirically examine the causal relationships between saliency and agent behavior. It also provides implementations of three types of saliency maps used in RL: (1) [Jacobian](https://arxiv.org/abs/1511.06581), (2) [perturbation-based](https://arxiv.org/abs/1711.00138), and (3) [object-based](https://arxiv.org/abs/1809.06061).
 
 If you use this code or are inspired by our methodology, please cite our [ICLR paper](https://openreview.net/pdf?id=rkl3m1BFDB):
 
@@ -23,7 +25,7 @@ Please direct all queries to Akanksha Atrey (aatrey at cs dot umass dot edu) or 
 This repository requires Python 3 (>=3.5).
 
 ### Toybox Repository
-We use [Toybox](https://arxiv.org/abs/1812.02850), a set of fully parameterized implementation of Atari games, to generate interventional data under counterfactual conditions. Clone the [Toybox repository](https://github.com/jjfiv/toybox) and follow the setup instructions. This repository should reside in the `toybox/ctoybox` folder within the Toybox repository.
+We use [Toybox](https://arxiv.org/abs/1812.02850), a set of fully parameterized implementation of Atari games, to generate interventional data under counterfactual conditions. Visit the [Toybox repository](https://github.com/jjfiv/toybox) and follow the setup instructions. The `saliency_maps` repository should reside in the `toybox/ctoybox` folder within the Toybox repository.
 
 ### Baselines Repository
 All agents used in this work are trained using the OpenAI's baselines implementation. Clone [this version](https://github.com/akanksha95/baselines.git) of the baselines repository in the same directory as this repository and follow the setup instructions (in the `toybox/ctoybox` folder). This version of baselines is a fork of the original baselines repository with code changes to accomodate building different saliency maps.
